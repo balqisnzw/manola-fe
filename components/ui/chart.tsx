@@ -118,11 +118,19 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
-}: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
-  React.ComponentProps<'div'> & {
+}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Record<string, any> & {
+    active?: boolean
+    payload?: RechartsPrimitive.TooltipPayloadEntry[]
+    className?: string
+    indicator?: 'line' | 'dot' | 'dashed'
     hideLabel?: boolean
     hideIndicator?: boolean
-    indicator?: 'line' | 'dot' | 'dashed'
+    label?: unknown
+    labelFormatter?: (label: unknown, payload: unknown[]) => React.ReactNode
+    labelClassName?: string
+    formatter?: (...args: unknown[]) => React.ReactNode
+    color?: string
     nameKey?: string
     labelKey?: string
   }) {
@@ -179,14 +187,14 @@ function ChartTooltipContent({
     >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
-        {payload.map((item, index) => {
+        {payload.map((item: RechartsPrimitive.TooltipPayloadEntry, index: number) => {
           const key = `${nameKey || item.name || item.dataKey || 'value'}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
           const indicatorColor = color || item.payload.fill || item.color
 
           return (
             <div
-              key={item.dataKey}
+              key={item.dataKey as string | number}
               className={cn(
                 '[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
                 indicator === 'dot' && 'items-center',
@@ -256,8 +264,9 @@ function ChartLegendContent({
   payload,
   verticalAlign = 'bottom',
   nameKey,
-}: React.ComponentProps<'div'> &
-  Pick<RechartsPrimitive.LegendProps, 'payload' | 'verticalAlign'> & {
+}: React.ComponentProps<'div'> & {
+    payload?: Array<{ dataKey?: string | number; value?: string; color?: string; [k: string]: unknown }>
+    verticalAlign?: 'top' | 'middle' | 'bottom'
     hideIcon?: boolean
     nameKey?: string
   }) {
@@ -275,7 +284,7 @@ function ChartLegendContent({
         className,
       )}
     >
-      {payload.map((item) => {
+      {(payload as Array<{ dataKey?: string | number; value?: string; color?: string; [k: string]: unknown }>).map((item) => {
         const key = `${nameKey || item.dataKey || 'value'}`
         const itemConfig = getPayloadConfigFromPayload(config, item, key)
 

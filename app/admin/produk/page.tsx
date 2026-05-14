@@ -8,7 +8,19 @@ import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
 import { MModal } from "@/components/manola/MModal"
 import { MBadge } from "@/components/manola/MBadge"
-import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Search, Upload, X, Pencil, Trash2 } from "lucide-react"
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Archive, Truck,
+  ClipboardList,
+  MessageSquare,
+  Settings, Search,
+  Upload,
+  X,
+  Pencil,
+  Trash2,
+  CheckCircle
+} from "lucide-react"
 
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -71,8 +83,8 @@ export default function AdminProdukPage() {
   const filteredProducts = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchCategory = !filterKategori || p.category === filterKategori
-    const matchStock = !filterStok || 
-      (filterStok === "aman" && p.totalStock > 3) || 
+    const matchStock = !filterStok ||
+      (filterStok === "aman" && p.totalStock > 3) ||
       (filterStok === "hampir-habis" && p.totalStock <= 3)
     return matchSearch && matchCategory && matchStock
   })
@@ -346,11 +358,10 @@ export default function AdminProdukPage() {
                     key={size}
                     type="button"
                     onClick={() => toggleSize(size)}
-                    className={`border rounded-md px-3 py-1 text-sm transition ${
-                      formData.selectedSizes.includes(size)
-                        ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
-                        : "border-[#E5E7EB] hover:border-[#0A0A0A]"
-                    }`}
+                    className={`border rounded-md px-3 py-1 text-sm transition ${formData.selectedSizes.includes(size)
+                      ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
+                      : "border-[#E5E7EB] hover:border-[#0A0A0A]"
+                      }`}
                   >
                     {size}
                   </button>
@@ -531,11 +542,3 @@ export default function AdminProdukPage() {
   )
 }
 
-// Helper component for CheckCircle used in category editing
-function CheckCircle2({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}

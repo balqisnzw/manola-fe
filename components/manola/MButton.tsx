@@ -4,7 +4,7 @@ import { ButtonHTMLAttributes, forwardRef } from "react"
 import { cn } from "@/lib/utils"
 
 interface MButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "danger"
+  variant?: "primary" | "secondary" | "ghost" | "danger" | "outline"
   size?: "sm" | "md" | "lg"
   fullWidth?: boolean
 }
@@ -21,6 +21,7 @@ const MButton = forwardRef<HTMLButtonElement, MButtonProps>(
             "border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#F9F9F9] bg-white": variant === "secondary",
             "text-[#6B7280] hover:text-[#0A0A0A] hover:bg-[#F9F9F9]": variant === "ghost",
             "bg-red-500 text-white hover:bg-red-600": variant === "danger",
+            "border border-[#E5E7EB] text-[#374151] hover:bg-[#F9F9F9] bg-white": variant === "outline",
           },
           {
             "h-8 px-3 text-sm": size === "sm",

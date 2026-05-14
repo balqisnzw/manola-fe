@@ -6,11 +6,24 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { MInput } from "@/components/manola/MInput";
+import { authService } from "@/lib/services";
+import { ApiError } from "@/lib/api";
+
+// Role → redirect map
+const ROLE_REDIRECT: Record<string, string> = {
+  OWNER: "/owner/dashboard",
+  ADMIN: "/admin/dashboard",
+  KASIR: "/kasir/dashboard",
+  PACKAGING: "/packaging/dashboard",
+  USER: "/profil",
+};
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -20,12 +33,67 @@ export default function LoginPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/profil");
+    setError(null);
+
+    // Client-side validation
+    if (!isLogin && formData.password !== formData.confirmPassword) {
+      setError("Password dan konfirmasi password tidak cocok.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isLogin) {
+        // ── LOGIN ─────────────────────────────────────────────────────────────
+        const { user } = await authService.login(formData.email, formData.password);
+        const redirect = ROLE_REDIRECT[user.role] ?? "/profil";
+        router.push(redirect);
+      } else {
+        // ── REGISTER ──────────────────────────────────────────────────────────
+        await authService.register({
+          email: formData.email,
+          password: formData.password,
+          nama: formData.name,
+        });
+        // After register, switch to login view
+        setIsLogin(true);
+        setFormData({ name: "", email: formData.email, password: "", confirmPassword: "" });
+        setError("Akun berhasil dibuat! Silakan masuk.");
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Terjadi kesalahan. Silakan coba lagi.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setError("Masukkan email terlebih dahulu.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await authService.forgotPassword(formData.email);
+      setError("Link reset password telah dikirim ke email Anda.");
+    } catch {
+      setError("Gagal mengirim email reset. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Determine if the error message is actually a success message
+  const isSuccess = error?.startsWith("Akun berhasil") || error?.startsWith("Link reset");
 
   return (
     <div className="min-h-screen bg-[var(--brand-gray)] flex flex-col">
@@ -49,6 +117,19 @@ export default function LoginPage() {
                 {isLogin ? "Selamat datang kembali!" : "Bergabung dengan Manola hari ini"}
               </p>
             </div>
+
+            {/* Error / success message */}
+            {error && (
+              <div
+                className={`mb-4 rounded-lg px-4 py-3 text-sm ${
+                  isSuccess
+                    ? "bg-green-50 text-green-700 border border-green-200"
+                    : "bg-red-50 text-red-700 border border-red-200"
+                }`}
+              >
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
@@ -101,13 +182,17 @@ export default function LoginPage() {
               )}
               {isLogin && (
                 <div className="flex justify-end">
-                  <button type="button" className="text-sm text-[var(--brand-muted)] hover:text-[var(--brand-black)]">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-sm text-[var(--brand-muted)] hover:text-[var(--brand-black)]"
+                  >
                     Lupa password?
                   </button>
                 </div>
               )}
-              <MButton type="submit" className="w-full" size="lg">
-                {isLogin ? "Masuk" : "Daftar"}
+              <MButton type="submit" className="w-full" size="lg" disabled={loading}>
+                {loading ? "Memproses..." : isLogin ? "Masuk" : "Daftar"}
               </MButton>
             </form>
 
@@ -115,7 +200,10 @@ export default function LoginPage() {
               <p className="text-sm text-[var(--brand-muted)]">
                 {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
                 <button
-                  onClick={() => setIsLogin(!isLogin)}
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError(null);
+                  }}
                   className="font-semibold text-[var(--brand-black)] hover:underline"
                 >
                   {isLogin ? "Daftar sekarang" : "Masuk"}
@@ -126,7 +214,7 @@ export default function LoginPage() {
 
           <p className="text-center text-sm text-[var(--brand-muted)] mt-6">
             Dengan melanjutkan, Anda menyetujui{" "}
-            <Link href="#" className="underline hover:text-[var(--brand-black)]">Syarat & Ketentuan</Link>{" "}
+            <Link href="#" className="underline hover:text-[var(--brand-black)]">Syarat &amp; Ketentuan</Link>{" "}
             dan{" "}
             <Link href="#" className="underline hover:text-[var(--brand-black)]">Kebijakan Privasi</Link>
           </p>

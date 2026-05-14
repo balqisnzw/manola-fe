@@ -16,7 +16,8 @@ interface MTableProps<T> {
   className?: string
 }
 
-export function MTable<T extends Record<string, unknown>>({
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function MTable<T extends Record<string, any>>({
   columns,
   data,
   emptyMessage = "Tidak ada data",

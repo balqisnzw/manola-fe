@@ -163,7 +163,7 @@ export default function OwnerDashboardPage() {
                 tick={{ fontSize: 12, fill: "#6B7280" }}
               />
               <Tooltip
-                formatter={(value: number) => [formatRupiah(value), "Penjualan"]}
+                formatter={(value) => [formatRupiah(value as number), "Penjualan"]}
                 contentStyle={{
                   backgroundColor: "#fff",
                   border: "1px solid #E5E7EB",
