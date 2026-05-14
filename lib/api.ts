@@ -1,10 +1,4 @@
-/**
- * Base API client for Manola backend
- * Base URL: http://localhost:4000/api
- * Auth: JWT Bearer token stored in localStorage under key "manola_token"
- */
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL
 const TOKEN_KEY = "manola_token";
 const USER_KEY = "manola_user";
 
