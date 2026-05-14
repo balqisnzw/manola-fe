@@ -20,15 +20,13 @@ const ROLE_REDIRECT: Record<string, string> = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     password: "",
-    confirmPassword: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,61 +37,33 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    // Client-side validation
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      setError("Password dan konfirmasi password tidak cocok.");
-      return;
-    }
-
+    setSuccessMsg(null);
     setLoading(true);
+
     try {
-      if (isLogin) {
-        // ── LOGIN ─────────────────────────────────────────────────────────────
-        const { user } = await authService.login(formData.email, formData.password);
-        const redirect = ROLE_REDIRECT[user.role] ?? "/profil";
+      // ── LOGIN ─────────────────────────────────────────────────────────────
+      const response = await authService.login(formData.email, formData.password);
+
+      // Ambil pesan sukses dari response (jika ada, default: "Login berhasil")
+      setSuccessMsg(response.message || "Login berhasil!");
+
+      const { user } = response;
+      const redirect = ROLE_REDIRECT[user.role] ?? "/profil";
+
+      // Beri sedikit waktu untuk melihat pesan sukses sebelum redirect
+      setTimeout(() => {
         router.push(redirect);
-      } else {
-        // ── REGISTER ──────────────────────────────────────────────────────────
-        await authService.register({
-          email: formData.email,
-          password: formData.password,
-          nama: formData.name,
-        });
-        // After register, switch to login view
-        setIsLogin(true);
-        setFormData({ name: "", email: formData.email, password: "", confirmPassword: "" });
-        setError("Akun berhasil dibuat! Silakan masuk.");
-      }
+      }, 800);
+
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError("Terjadi kesalahan. Silakan coba lagi.");
       }
-    } finally {
       setLoading(false);
     }
   };
-
-  const handleForgotPassword = async () => {
-    if (!formData.email) {
-      setError("Masukkan email terlebih dahulu.");
-      return;
-    }
-    setLoading(true);
-    try {
-      await authService.forgotPassword(formData.email);
-      setError("Link reset password telah dikirim ke email Anda.");
-    } catch {
-      setError("Gagal mengirim email reset. Coba lagi.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Determine if the error message is actually a success message
-  const isSuccess = error?.startsWith("Akun berhasil") || error?.startsWith("Link reset");
 
   return (
     <div className="min-h-screen bg-[var(--brand-gray)] flex flex-col">
@@ -111,37 +81,28 @@ export default function LoginPage() {
           <div className="bg-[var(--brand-white)] rounded-2xl border border-[var(--brand-border)] p-8">
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-[var(--brand-black)]">
-                {isLogin ? "Masuk ke Akun" : "Buat Akun Baru"}
+                Masuk ke Akun
               </h1>
               <p className="text-[var(--brand-muted)] mt-2">
-                {isLogin ? "Selamat datang kembali!" : "Bergabung dengan Manola hari ini"}
+                Selamat datang kembali!
               </p>
             </div>
 
-            {/* Error / success message */}
+            {/* Error message */}
             {error && (
-              <div
-                className={`mb-4 rounded-lg px-4 py-3 text-sm ${
-                  isSuccess
-                    ? "bg-green-50 text-green-700 border border-green-200"
-                    : "bg-red-50 text-red-700 border border-red-200"
-                }`}
-              >
+              <div className="mb-4 rounded-lg px-4 py-3 text-sm bg-red-50 text-red-700 border border-red-200">
                 {error}
               </div>
             )}
 
+            {/* Success message */}
+            {successMsg && (
+              <div className="mb-4 rounded-lg px-4 py-3 text-sm bg-green-50 text-green-700 border border-green-200">
+                {successMsg}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <MInput
-                  label="Nama Lengkap"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Masukkan nama lengkap"
-                  required
-                />
-              )}
               <MInput
                 label="Email"
                 name="email"
@@ -169,47 +130,10 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {!isLogin && (
-                <MInput
-                  label="Konfirmasi Password"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  placeholder="Ulangi password"
-                  required
-                />
-              )}
-              {isLogin && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    className="text-sm text-[var(--brand-muted)] hover:text-[var(--brand-black)]"
-                  >
-                    Lupa password?
-                  </button>
-                </div>
-              )}
-              <MButton type="submit" className="w-full" size="lg" disabled={loading}>
-                {loading ? "Memproses..." : isLogin ? "Masuk" : "Daftar"}
+              <MButton type="submit" className="w-full mt-6" size="lg" disabled={loading}>
+                {loading ? "Memproses..." : "Masuk"}
               </MButton>
             </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-[var(--brand-muted)]">
-                {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
-                <button
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setError(null);
-                  }}
-                  className="font-semibold text-[var(--brand-black)] hover:underline"
-                >
-                  {isLogin ? "Daftar sekarang" : "Masuk"}
-                </button>
-              </p>
-            </div>
           </div>
 
           <p className="text-center text-sm text-[var(--brand-muted)] mt-6">
