@@ -16,12 +16,19 @@ export interface CreateSupplierPayload {
   alamat?: string;
 }
 
+interface ApiResponse<T> {
+  status: string;
+  message: string;
+  data: T;
+}
+
 // ─── Supplier service ──────────────────────────────────────────────────────────
 
 export const supplierService = {
   /** GET /suppliers */
   async getAll(): Promise<Supplier[]> {
-    return api.get<Supplier[]>("/suppliers");
+    const res = await api.get<ApiResponse<Supplier[]>>("/suppliers");
+    return Array.isArray(res.data) ? res.data : [];
   },
 
   /** POST /suppliers */

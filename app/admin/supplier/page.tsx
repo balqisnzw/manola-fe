@@ -1,13 +1,37 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MTable } from "@/components/manola/MTable"
 import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
-import { MModal } from "@/components/manola/MModal"
-import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Search } from "lucide-react"
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Archive,
+  Truck,
+  ClipboardList,
+  MessageSquare,
+  Settings,
+  Search,
+  Pencil,
+  Trash2,
+  CheckCircle,
+  X,
+  Loader2,
+} from "lucide-react"
+import { supplierService, type Supplier } from "@/lib/services/supplierService"
+import { AddSupplierModal } from "./components/AddSupplierModal"
+import { EditSupplierModal } from "./components/EditSupplierModal"
+import { DeleteSupplierModal } from "./components/DeleteSupplierModal"
+import {
+  DEFAULT_SUPPLIER_FORM,
+  toSupplierPayload,
+  type SupplierFormState,
+} from "./components/types"
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -19,99 +43,207 @@ const navItems = [
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]
 
-const initialSuppliers = [
-  { id: 1, name: "PT Tekstil Jaya", contact: "021-5551234", email: "info@tekstiljaya.com", address: "Jl. Industri No. 45, Bandung" },
-  { id: 2, name: "CV Garmen Indo", contact: "022-6667890", email: "order@garmenindo.co.id", address: "Jl. Garment Raya No. 12, Jakarta Barat" },
-  { id: 3, name: "PT Aksesoris Keren", contact: "021-7778901", email: "sales@aksessoriskeren.com", address: "Jl. Fashion No. 88, Surabaya" },
-  { id: 4, name: "UD Kain Berkah", contact: "024-3334567", email: "kainberkah@gmail.com", address: "Jl. Tekstil No. 23, Semarang" },
-  { id: 5, name: "PT Jahit Makmur", contact: "031-4445678", email: "info@jahitmakmur.co.id", address: "Jl. Konveksi No. 56, Surabaya" },
-  { id: 6, name: "CV Bordir Indah", contact: "022-8889012", email: "bordirindah@yahoo.com", address: "Jl. Bordir No. 78, Bandung" },
-]
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function Toast({ message, type }: { message: string; type: "success" | "error" }) {
+  return (
+    <div
+      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white text-sm transition-all
+        ${type === "success" ? "bg-green-600" : "bg-red-600"}`}
+    >
+      {type === "success" ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
+      {message}
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminSupplierPage() {
-  const [suppliers, setSuppliers] = useState(initialSuppliers)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [showModal, setShowModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedSupplier, setSelectedSupplier] = useState<typeof suppliers[0] | null>(null)
-  const [isEdit, setIsEdit] = useState(false)
+  // Data
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
 
-  const [formData, setFormData] = useState({
-    name: "",
-    contact: "",
-    email: "",
-    address: "",
-  })
+  // Filter
+  const [searchQuery, setSearchQuery] = useState("")
+
+  // Modal visibility
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+
+  // Selected supplier (untuk edit & delete)
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+
+  // Form state
+  const [formData, setFormData] = useState<SupplierFormState>(DEFAULT_SUPPLIER_FORM)
+
+  // ─── Load data ────────────────────────────────────────────────────────────────
+
+  const loadSuppliers = async () => {
+    try {
+      setLoading(true)
+      const data = await supplierService.getAll()
+      setSuppliers(data)
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal memuat data supplier", "error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadSuppliers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ─── Toast ────────────────────────────────────────────────────────────────────
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  // ─── Filter ───────────────────────────────────────────────────────────────────
 
   const filteredSuppliers = suppliers.filter((s) =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    s.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.no_telepon.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (s.alamat ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  // ─── Open modals ──────────────────────────────────────────────────────────────
+
   const openAddModal = () => {
-    setIsEdit(false)
-    setFormData({ name: "", contact: "", email: "", address: "" })
-    setShowModal(true)
+    setFormData(DEFAULT_SUPPLIER_FORM)
+    setShowAddModal(true)
   }
 
-  const openEditModal = (supplier: typeof suppliers[0]) => {
-    setIsEdit(true)
+  const openEditModal = (supplier: Supplier) => {
     setSelectedSupplier(supplier)
     setFormData({
-      name: supplier.name,
-      contact: supplier.contact,
-      email: supplier.email,
-      address: supplier.address,
+      nama: supplier.nama,
+      no_telepon: supplier.no_telepon,
+      alamat: supplier.alamat ?? "",
     })
-    setShowModal(true)
+    setShowEditModal(true)
   }
 
-  const handleSave = () => {
-    if (isEdit && selectedSupplier) {
-      setSuppliers(suppliers.map((s) =>
-        s.id === selectedSupplier.id
-          ? { ...s, ...formData }
-          : s
-      ))
-    } else {
-      const newSupplier = {
-        id: suppliers.length + 1,
-        ...formData,
-      }
-      setSuppliers([...suppliers, newSupplier])
+  const openDeleteModal = (supplier: Supplier) => {
+    setSelectedSupplier(supplier)
+    setShowDeleteModal(true)
+  }
+
+  // ─── Submit handlers ──────────────────────────────────────────────────────────
+
+  const handleAddSupplier = async () => {
+    if (!formData.nama || !formData.no_telepon) {
+      showToast("Nama dan nomor telepon wajib diisi", "error")
+      return
     }
-    setShowModal(false)
+    try {
+      setSubmitting(true)
+      await supplierService.create(toSupplierPayload(formData))
+      showToast("Supplier berhasil ditambahkan", "success")
+      setShowAddModal(false)
+      await loadSuppliers()
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal menambah supplier", "error")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleDelete = () => {
-    if (selectedSupplier) {
-      setSuppliers(suppliers.filter((s) => s.id !== selectedSupplier.id))
+  const handleEditSupplier = async () => {
+    if (!selectedSupplier) return
+    if (!formData.nama || !formData.no_telepon) {
+      showToast("Nama dan nomor telepon wajib diisi", "error")
+      return
+    }
+    try {
+      setSubmitting(true)
+      await supplierService.update(selectedSupplier.id, toSupplierPayload(formData))
+      showToast("Supplier berhasil diperbarui", "success")
+      setShowEditModal(false)
+      await loadSuppliers()
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal memperbarui supplier", "error")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteSupplier = async () => {
+    if (!selectedSupplier) return
+    try {
+      setSubmitting(true)
+      await supplierService.delete(selectedSupplier.id)
+      showToast("Supplier berhasil dihapus", "success")
       setShowDeleteModal(false)
       setSelectedSupplier(null)
+      await loadSuppliers()
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal menghapus supplier", "error")
+    } finally {
+      setSubmitting(false)
     }
   }
 
+  // ─── Table columns ────────────────────────────────────────────────────────────
+
   const columns = [
-    { key: "name", label: "Nama Supplier", render: (item: typeof suppliers[0]) => <span className="font-medium">{item.name}</span> },
-    { key: "contact", label: "Kontak" },
-    { key: "email", label: "Email" },
-    { key: "address", label: "Alamat", render: (item: typeof suppliers[0]) => <span className="text-sm text-[#6B7280]">{item.address}</span> },
+    {
+      key: "nama",
+      label: "Nama Supplier",
+      render: (item: Supplier) => <span className="font-medium">{item.nama}</span>,
+    },
+    {
+      key: "no_telepon",
+      label: "No. Telepon",
+      render: (item: Supplier) => <span className="text-sm">{item.no_telepon}</span>,
+    },
+    {
+      key: "alamat",
+      label: "Alamat",
+      render: (item: Supplier) => (
+        <span className="text-sm text-[#6B7280]">{item.alamat ?? "-"}</span>
+      ),
+    },
+    {
+      key: "createdAt",
+      label: "Terdaftar",
+      render: (item: Supplier) => (
+        <span className="text-sm text-[#6B7280]">
+          {new Date(item.createdAt).toLocaleDateString("id-ID", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
+        </span>
+      ),
+    },
     {
       key: "action",
       label: "Aksi",
-      render: (item: typeof suppliers[0]) => (
+      render: (item: Supplier) => (
         <div className="flex gap-2">
           <MButton variant="ghost" size="sm" onClick={() => openEditModal(item)}>
+            <Pencil className="w-3.5 h-3.5 mr-1" />
             Edit
           </MButton>
           <MButton
             variant="ghost"
             size="sm"
             className="text-red-500 hover:text-red-600 hover:bg-red-50"
-            onClick={() => {
-              setSelectedSupplier(item)
-              setShowDeleteModal(true)
-            }}
+            onClick={() => openDeleteModal(item)}
           >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
             Hapus
           </MButton>
         </div>
@@ -119,8 +251,14 @@ export default function AdminSupplierPage() {
     },
   ]
 
+  // ─── Render ───────────────────────────────────────────────────────────────────
+
   return (
-    <SidebarLayout navItems={navItems} userName="Rina Dewi" userRole="Admin">
+    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} />}
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="w-64">
           <MInput
@@ -135,81 +273,47 @@ export default function AdminSupplierPage() {
         </MButton>
       </div>
 
+      {/* Table */}
       <MCard padding="sm">
-        <MTable columns={columns} data={filteredSuppliers} />
+        {loading ? (
+          <div className="flex items-center justify-center py-16 gap-2 text-[#6B7280]">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Memuat data supplier...</span>
+          </div>
+        ) : (
+          <MTable columns={columns} data={filteredSuppliers} />
+        )}
       </MCard>
 
-      {/* Add/Edit Supplier Modal */}
-      <MModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={isEdit ? "Edit Supplier" : "Tambah Supplier"}
-        maxWidth="md"
-        footer={
-          <>
-            <MButton variant="ghost" onClick={() => setShowModal(false)}>
-              Batal
-            </MButton>
-            <MButton variant="primary" onClick={handleSave}>
-              Simpan
-            </MButton>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <MInput
-            label="Nama Supplier"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
-          <MInput
-            label="Nomor Kontak"
-            value={formData.contact}
-            onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-          />
-          <MInput
-            label="Email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          />
-          <div>
-            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Alamat</label>
-            <textarea
-              rows={3}
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full border border-[#E5E7EB] rounded-md px-3 py-2 text-sm focus:border-[#0A0A0A] focus:outline-none"
-            />
-          </div>
-        </div>
-      </MModal>
+      {/* ── Modal Tambah ─────────────────────────────────────────────────────── */}
+      <AddSupplierModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        formData={formData}
+        onChange={setFormData}
+        onSubmit={handleAddSupplier}
+        submitting={submitting}
+      />
 
-      {/* Delete Confirmation Modal */}
-      <MModal
+      {/* ── Modal Edit ───────────────────────────────────────────────────────── */}
+      <EditSupplierModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        supplier={selectedSupplier}
+        formData={formData}
+        onChange={setFormData}
+        onSubmit={handleEditSupplier}
+        submitting={submitting}
+      />
+
+      {/* ── Modal Hapus ──────────────────────────────────────────────────────── */}
+      <DeleteSupplierModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        maxWidth="xs"
-        footer={
-          <>
-            <MButton variant="ghost" onClick={() => setShowDeleteModal(false)}>
-              Batal
-            </MButton>
-            <MButton variant="danger" onClick={handleDelete}>
-              Hapus
-            </MButton>
-          </>
-        }
-      >
-        <div className="text-center py-2">
-          <p className="text-[#0A0A0A]">
-            Hapus supplier <span className="font-semibold">{selectedSupplier?.name}</span>?
-          </p>
-          <p className="text-sm text-[#6B7280] mt-2">
-            Tindakan ini tidak dapat dibatalkan.
-          </p>
-        </div>
-      </MModal>
+        supplier={selectedSupplier}
+        onConfirm={handleDeleteSupplier}
+        submitting={submitting}
+      />
     </SidebarLayout>
   )
 }

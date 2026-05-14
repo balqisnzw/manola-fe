@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MTable } from "@/components/manola/MTable"
@@ -11,16 +11,29 @@ import { MBadge } from "@/components/manola/MBadge"
 import {
   LayoutDashboard,
   ShoppingBag,
-  Archive, Truck,
+  Archive,
+  Truck,
   ClipboardList,
   MessageSquare,
-  Settings, Search,
-  Upload,
-  X,
+  Settings,
+  Search,
   Pencil,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  Loader2,
+  X,
 } from "lucide-react"
+import {
+  productService,
+  buildProductFormData,
+  type Product,
+} from "@/lib/services/productService"
+import { AddProductModal } from "./components/AddProductModal"
+import { EditProductModal } from "./components/EditProductModal"
+import { DeleteProductModal } from "./components/DeleteProductModal"
+import { DEFAULT_FORM, toVariantPayload, type ProductFormState } from "./components/types"
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -32,193 +45,279 @@ const navItems = [
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]
 
-const initialProducts = [
-  { id: 1, name: "Kaos Oversize Black", category: "Kaos", price: 200000, totalStock: 45 },
-  { id: 2, name: "Hoodie Essential Gray", category: "Hoodie", price: 350000, totalStock: 28 },
-  { id: 3, name: "Celana Cargo Olive", category: "Celana", price: 250000, totalStock: 2 },
-  { id: 4, name: "Jaket Bomber Navy", category: "Jaket", price: 450000, totalStock: 15 },
-  { id: 5, name: "Kaos Graphic White", category: "Kaos", price: 180000, totalStock: 1 },
-  { id: 6, name: "Celana Jogger Black", category: "Celana", price: 220000, totalStock: 32 },
-  { id: 7, name: "Hoodie Zip Brown", category: "Hoodie", price: 380000, totalStock: 3 },
-  { id: 8, name: "Kaos Polo Navy", category: "Kaos", price: 250000, totalStock: 18 },
-  { id: 9, name: "Topi Snapback Black", category: "Aksesoris", price: 150000, totalStock: 50 },
-  { id: 10, name: "Celana Chino Beige", category: "Celana", price: 280000, totalStock: 22 },
-  { id: 11, name: "Jaket Denim Blue", category: "Jaket", price: 420000, totalStock: 12 },
-  { id: 12, name: "Kaos Basic White", category: "Kaos", price: 150000, totalStock: 60 },
-]
-
-const categories = ["Kaos", "Celana", "Jaket", "Hoodie", "Aksesoris"]
-const sizes = ["S", "M", "L", "XL"]
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatRupiah(value: number) {
   return `Rp ${value.toLocaleString("id-ID")}`
 }
 
+function getTotalStock(product: Product): number {
+  return product.variants.reduce((sum, v) => sum + v.stock, 0)
+}
+
+function Toast({ message, type }: { message: string; type: "success" | "error" }) {
+  return (
+    <div
+      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white text-sm transition-all
+        ${type === "success" ? "bg-green-600" : "bg-red-600"}`}
+    >
+      {type === "success" ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
+      {message}
+    </div>
+  )
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function AdminProdukPage() {
-  const [products, setProducts] = useState(initialProducts)
+  // Data
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
+
+  // Filter
   const [searchQuery, setSearchQuery] = useState("")
   const [filterKategori, setFilterKategori] = useState("")
   const [filterStok, setFilterStok] = useState("")
-  const [showProductModal, setShowProductModal] = useState(false)
-  const [showKategoriModal, setShowKategoriModal] = useState(false)
+
+  // Modal visibility
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<typeof products[0] | null>(null)
-  const [isEdit, setIsEdit] = useState(false)
+  const [showKategoriModal, setShowKategoriModal] = useState(false)
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    price: "",
-    category: "Kaos",
-    selectedSizes: [] as string[],
-    sizeStocks: {} as Record<string, string>,
-    colors: [{ color: "#000000", name: "", stock: "" }],
-  })
+  // Selected product (untuk edit & delete)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
-  const [categoryList, setCategoryList] = useState(categories)
+  // Form state (shared antara Add & Edit)
+  const [formData, setFormData] = useState<ProductFormState>(DEFAULT_FORM)
+  const [photos, setPhotos] = useState<File[]>([])
+
+  // Kategori (dikelola client-side, diambil dari data produk)
+  const [categoryList, setCategoryList] = useState<string[]>([])
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [newCategoryName, setNewCategoryName] = useState("")
+
+  // ─── Load produk ────────────────────────────────────────────────────────────
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true)
+      const data = await productService.getAll()
+      setProducts(data)
+      const cats = Array.from(new Set(data.map((p) => p.category).filter(Boolean) as string[]))
+      setCategoryList(cats)
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal memuat data produk", "error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ─── Toast ──────────────────────────────────────────────────────────────────
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  // ─── Filter ─────────────────────────────────────────────────────────────────
 
   const filteredProducts = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
     const matchCategory = !filterKategori || p.category === filterKategori
-    const matchStock = !filterStok ||
-      (filterStok === "aman" && p.totalStock > 3) ||
-      (filterStok === "hampir-habis" && p.totalStock <= 3)
+    const total = getTotalStock(p)
+    const matchStock =
+      !filterStok ||
+      (filterStok === "aman" && total > 3) ||
+      (filterStok === "hampir-habis" && total <= 3)
     return matchSearch && matchCategory && matchStock
   })
 
+  // ─── Open modals ────────────────────────────────────────────────────────────
+
   const openAddModal = () => {
-    setIsEdit(false)
-    setFormData({
-      name: "",
-      description: "",
-      price: "",
-      category: "Kaos",
-      selectedSizes: [],
-      sizeStocks: {},
-      colors: [{ color: "#000000", name: "", stock: "" }],
-    })
-    setShowProductModal(true)
+    setFormData(DEFAULT_FORM)
+    setPhotos([])
+    setShowAddModal(true)
   }
 
-  const openEditModal = (product: typeof products[0]) => {
-    setIsEdit(true)
+  const openEditModal = (product: Product) => {
     setSelectedProduct(product)
     setFormData({
       name: product.name,
-      description: "",
+      description: product.description ?? "",
       price: product.price.toString(),
-      category: product.category,
-      selectedSizes: ["M", "L"],
-      sizeStocks: { M: "10", L: "15" },
-      colors: [{ color: "#000000", name: "Hitam", stock: "20" }],
+      category: product.category ?? "",
+      supplierId: product.supplierId?.toString() ?? "",
+      variants:
+        product.variants.length > 0
+          ? product.variants.map((v) => ({
+              size: v.size,
+              color: v.color ?? "",
+              stock: v.stock.toString(),
+            }))
+          : [{ size: "M", color: "", stock: "" }],
     })
-    setShowProductModal(true)
+    setPhotos([])
+    setShowEditModal(true)
   }
 
-  const handleSaveProduct = () => {
-    if (isEdit && selectedProduct) {
-      setProducts(products.map((p) =>
-        p.id === selectedProduct.id
-          ? { ...p, name: formData.name, price: parseInt(formData.price), category: formData.category }
-          : p
-      ))
-    } else {
-      const newProduct = {
-        id: products.length + 1,
-        name: formData.name,
-        category: formData.category,
-        price: parseInt(formData.price),
-        totalStock: 0,
-      }
-      setProducts([...products, newProduct])
+  const openDeleteModal = (product: Product) => {
+    setSelectedProduct(product)
+    setShowDeleteModal(true)
+  }
+
+  // ─── Submit handlers ────────────────────────────────────────────────────────
+
+  const handleAddProduct = async () => {
+    if (!formData.name || !formData.price) {
+      showToast("Nama produk dan harga wajib diisi", "error")
+      return
     }
-    setShowProductModal(false)
+    const fd = buildProductFormData(
+      {
+        name: formData.name,
+        description: formData.description || undefined,
+        price: parseInt(formData.price),
+        category: formData.category || undefined,
+        supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
+      },
+      toVariantPayload(formData.variants),
+      photos.length > 0 ? photos : undefined
+    )
+    try {
+      setSubmitting(true)
+      await productService.create(fd)
+      showToast("Produk berhasil ditambahkan", "success")
+      setShowAddModal(false)
+      await loadProducts()
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal menambah produk", "error")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const handleDeleteProduct = () => {
-    if (selectedProduct) {
-      setProducts(products.filter((p) => p.id !== selectedProduct.id))
+  const handleEditProduct = async () => {
+    if (!selectedProduct) return
+    if (!formData.name || !formData.price) {
+      showToast("Nama produk dan harga wajib diisi", "error")
+      return
+    }
+    const fd = buildProductFormData(
+      {
+        name: formData.name,
+        description: formData.description || undefined,
+        price: parseInt(formData.price),
+        category: formData.category || undefined,
+        supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
+      },
+      toVariantPayload(formData.variants),
+      photos.length > 0 ? photos : undefined
+    )
+    try {
+      setSubmitting(true)
+      await productService.update(selectedProduct.id, fd)
+      showToast("Produk berhasil diperbarui", "success")
+      setShowEditModal(false)
+      await loadProducts()
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal memperbarui produk", "error")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return
+    try {
+      setSubmitting(true)
+      await productService.delete(selectedProduct.id)
+      showToast("Produk berhasil dihapus", "success")
       setShowDeleteModal(false)
       setSelectedProduct(null)
+      await loadProducts()
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal menghapus produk", "error")
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const toggleSize = (size: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedSizes: prev.selectedSizes.includes(size)
-        ? prev.selectedSizes.filter((s) => s !== size)
-        : [...prev.selectedSizes, size],
-    }))
-  }
-
-  const addColor = () => {
-    setFormData((prev) => ({
-      ...prev,
-      colors: [...prev.colors, { color: "#000000", name: "", stock: "" }],
-    }))
-  }
-
-  const removeColor = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      colors: prev.colors.filter((_, i) => i !== index),
-    }))
-  }
+  // ─── Table columns ──────────────────────────────────────────────────────────
 
   const columns = [
     {
       key: "photo",
       label: "Foto",
-      render: () => <div className="w-12 h-12 bg-gray-100 rounded-md" />,
+      render: (item: Product) => {
+        const firstImg = item.images?.[0]?.url
+        return firstImg ? (
+          <img src={firstImg} alt={item.name} className="w-12 h-12 object-cover rounded-md" />
+        ) : (
+          <div className="w-12 h-12 bg-gray-100 rounded-md" />
+        )
+      },
     },
     {
       key: "name",
       label: "Nama Produk",
-      render: (item: typeof products[0]) => <span className="font-medium">{item.name}</span>,
+      render: (item: Product) => <span className="font-medium">{item.name}</span>,
     },
     {
       key: "category",
       label: "Kategori",
-      render: (item: typeof products[0]) => <span className="text-sm text-[#6B7280]">{item.category}</span>,
+      render: (item: Product) => (
+        <span className="text-sm text-[#6B7280]">{item.category ?? "-"}</span>
+      ),
     },
     {
       key: "price",
       label: "Harga",
-      render: (item: typeof products[0]) => formatRupiah(item.price),
+      render: (item: Product) => formatRupiah(item.price),
     },
     {
       key: "stock",
       label: "Stok",
-      render: (item: typeof products[0]) => (
-        <div className="flex items-center gap-2">
-          <span className={item.totalStock <= 3 ? "text-red-500 font-semibold" : "text-green-600"}>
-            {item.totalStock}
-          </span>
-          {item.totalStock <= 3 && <MBadge variant="warning">Hampir Habis</MBadge>}
-        </div>
-      ),
+      render: (item: Product) => {
+        const total = getTotalStock(item)
+        return (
+          <div className="flex items-center gap-2">
+            <span className={total <= 3 ? "text-red-500 font-semibold" : "text-green-600"}>
+              {total}
+            </span>
+            {total <= 3 && <MBadge variant="warning">Hampir Habis</MBadge>}
+          </div>
+        )
+      },
     },
     {
       key: "action",
       label: "Aksi",
-      render: (item: typeof products[0]) => (
+      render: (item: Product) => (
         <div className="flex gap-2">
           <MButton variant="ghost" size="sm" onClick={() => openEditModal(item)}>
+            <Pencil className="w-3.5 h-3.5 mr-1" />
             Edit
           </MButton>
           <MButton
             variant="ghost"
             size="sm"
             className="text-red-500 hover:text-red-600 hover:bg-red-50"
-            onClick={() => {
-              setSelectedProduct(item)
-              setShowDeleteModal(true)
-            }}
+            onClick={() => openDeleteModal(item)}
           >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
             Hapus
           </MButton>
         </div>
@@ -226,8 +325,13 @@ export default function AdminProdukPage() {
     },
   ]
 
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
   return (
-    <SidebarLayout navItems={navItems} userName="Rina Dewi" userRole="Admin">
+    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} />}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -239,16 +343,22 @@ export default function AdminProdukPage() {
               icon={<Search className="w-4 h-4" />}
             />
           </div>
-          <select
+
+          {/* Filter kategori — input teks bebas */}
+          <input
+            type="text"
             value={filterKategori}
             onChange={(e) => setFilterKategori(e.target.value)}
-            className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white"
-          >
-            <option value="">Semua Kategori</option>
+            placeholder="Filter kategori..."
+            list="filter-kategori-list"
+            className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white w-44 focus:outline-none focus:border-[#0A0A0A]"
+          />
+          <datalist id="filter-kategori-list">
             {categoryList.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
+              <option key={cat} value={cat} />
             ))}
-          </select>
+          </datalist>
+
           <select
             value={filterStok}
             onChange={(e) => setFilterStok(e.target.value)}
@@ -259,6 +369,7 @@ export default function AdminProdukPage() {
             <option value="hampir-habis">Hampir Habis</option>
           </select>
         </div>
+
         <div className="flex gap-2">
           <MButton variant="secondary" onClick={() => setShowKategoriModal(true)}>
             Kelola Kategori
@@ -271,178 +382,51 @@ export default function AdminProdukPage() {
 
       {/* Table */}
       <MCard padding="sm">
-        <MTable columns={columns} data={filteredProducts} />
+        {loading ? (
+          <div className="flex items-center justify-center py-16 gap-2 text-[#6B7280]">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Memuat data produk...</span>
+          </div>
+        ) : (
+          <MTable columns={columns} data={filteredProducts} />
+        )}
       </MCard>
 
-      {/* Add/Edit Product Modal */}
-      <MModal
-        isOpen={showProductModal}
-        onClose={() => setShowProductModal(false)}
-        title={isEdit ? "Edit Produk" : "Tambah Produk"}
-        maxWidth="2xl"
-        footer={
-          <>
-            <MButton variant="ghost" onClick={() => setShowProductModal(false)}>
-              Batal
-            </MButton>
-            <MButton variant="primary" onClick={handleSaveProduct}>
-              Simpan Produk
-            </MButton>
-          </>
-        }
-      >
-        <div className="grid grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div>
-            <label className="block text-sm font-medium text-[#0A0A0A] mb-2">Foto Produk</label>
-            <div className="border-2 border-dashed border-[#E5E7EB] rounded-lg h-48 flex flex-col items-center justify-center cursor-pointer hover:border-[#0A0A0A] transition">
-              <Upload className="w-8 h-8 text-[#6B7280] mb-2" />
-              <p className="text-sm text-[#6B7280]">Klik atau drag foto produk</p>
-              <p className="text-xs text-[#9CA3AF]">PNG, JPG maks 5MB</p>
-            </div>
-            <div className="flex gap-2 mt-2">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-14 h-14 bg-gray-100 rounded-md" />
-              ))}
-            </div>
-          </div>
+      {/* ── Modal Tambah ──────────────────────────────────────────────────────── */}
+      <AddProductModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        formData={formData}
+        onChange={setFormData}
+        photos={photos}
+        onPhotosChange={setPhotos}
+        onSubmit={handleAddProduct}
+        submitting={submitting}
+      />
 
-          {/* Right Column */}
-          <div className="space-y-4">
-            <MInput
-              label="Nama Produk"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-            <div>
-              <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Deskripsi</label>
-              <textarea
-                rows={3}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full border border-[#E5E7EB] rounded-md px-3 py-2 text-sm focus:border-[#0A0A0A] focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Harga</label>
-              <div className="flex items-center border border-[#E5E7EB] rounded-md">
-                <span className="px-3 text-[#6B7280] text-sm">Rp</span>
-                <input
-                  type="text"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="0"
-                  className="flex-1 h-10 px-2 text-sm focus:outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Kategori</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white"
-              >
-                {categoryList.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
+      {/* ── Modal Edit ────────────────────────────────────────────────────────── */}
+      <EditProductModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        product={selectedProduct}
+        formData={formData}
+        onChange={setFormData}
+        photos={photos}
+        onPhotosChange={setPhotos}
+        onSubmit={handleEditProduct}
+        submitting={submitting}
+      />
 
-            {/* Size Variants */}
-            <div>
-              <label className="block text-sm font-medium text-[#0A0A0A] mb-2">Variasi Ukuran</label>
-              <div className="flex gap-2 flex-wrap">
-                {sizes.map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => toggleSize(size)}
-                    className={`border rounded-md px-3 py-1 text-sm transition ${formData.selectedSizes.includes(size)
-                      ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
-                      : "border-[#E5E7EB] hover:border-[#0A0A0A]"
-                      }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-              {formData.selectedSizes.length > 0 && (
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {formData.selectedSizes.map((size) => (
-                    <div key={size} className="flex items-center gap-2">
-                      <span className="text-sm text-[#6B7280]">Stok {size}:</span>
-                      <input
-                        type="number"
-                        value={formData.sizeStocks[size] || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            sizeStocks: { ...formData.sizeStocks, [size]: e.target.value },
-                          })
-                        }
-                        className="w-16 h-8 border border-[#E5E7EB] rounded-md px-2 text-sm"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+      {/* ── Modal Hapus ───────────────────────────────────────────────────────── */}
+      <DeleteProductModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        product={selectedProduct}
+        onConfirm={handleDeleteProduct}
+        submitting={submitting}
+      />
 
-            {/* Color Variants */}
-            <div>
-              <label className="block text-sm font-medium text-[#0A0A0A] mb-2">Variasi Warna</label>
-              {formData.colors.map((colorItem, index) => (
-                <div key={index} className="flex items-center gap-2 mb-2">
-                  <input
-                    type="color"
-                    value={colorItem.color}
-                    onChange={(e) => {
-                      const newColors = [...formData.colors]
-                      newColors[index].color = e.target.value
-                      setFormData({ ...formData, colors: newColors })
-                    }}
-                    className="w-8 h-8 rounded cursor-pointer border"
-                  />
-                  <input
-                    placeholder="Nama warna (e.g. Hitam)"
-                    value={colorItem.name}
-                    onChange={(e) => {
-                      const newColors = [...formData.colors]
-                      newColors[index].name = e.target.value
-                      setFormData({ ...formData, colors: newColors })
-                    }}
-                    className="w-32 h-8 border border-[#E5E7EB] rounded-md px-2 text-sm"
-                  />
-                  <input
-                    placeholder="Stok"
-                    type="number"
-                    value={colorItem.stock}
-                    onChange={(e) => {
-                      const newColors = [...formData.colors]
-                      newColors[index].stock = e.target.value
-                      setFormData({ ...formData, colors: newColors })
-                    }}
-                    className="w-16 h-8 border border-[#E5E7EB] rounded-md px-2 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeColor(index)}
-                    className="p-1 text-[#6B7280] hover:text-red-500"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <MButton variant="ghost" size="sm" onClick={addColor}>
-                + Tambah Warna
-              </MButton>
-            </div>
-          </div>
-        </div>
-      </MModal>
-
-      {/* Kelola Kategori Modal */}
+      {/* ── Modal Kelola Kategori (client-side) ───────────────────────────────── */}
       <MModal
         isOpen={showKategoriModal}
         onClose={() => setShowKategoriModal(false)}
@@ -494,12 +478,21 @@ export default function AdminProdukPage() {
             </div>
           ))}
         </div>
+
+        {/* Form tambah kategori — input teks bebas */}
         <div className="flex gap-2 mt-4">
           <input
+            type="text"
             placeholder="Nama kategori baru"
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
-            className="flex-1 h-10 border border-[#E5E7EB] rounded-md px-3 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newCategoryName && !categoryList.includes(newCategoryName)) {
+                setCategoryList([...categoryList, newCategoryName])
+                setNewCategoryName("")
+              }
+            }}
+            className="flex-1 h-10 border border-[#E5E7EB] rounded-md px-3 text-sm focus:outline-none focus:border-[#0A0A0A]"
           />
           <MButton
             variant="primary"
@@ -515,30 +508,6 @@ export default function AdminProdukPage() {
           </MButton>
         </div>
       </MModal>
-
-      {/* Delete Confirmation Modal */}
-      <MModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        maxWidth="xs"
-        footer={
-          <>
-            <MButton variant="ghost" onClick={() => setShowDeleteModal(false)}>
-              Batal
-            </MButton>
-            <MButton variant="danger" onClick={handleDeleteProduct}>
-              Hapus
-            </MButton>
-          </>
-        }
-      >
-        <div className="text-center py-2">
-          <p className="text-[#0A0A0A]">
-            Hapus produk <span className="font-semibold">{selectedProduct?.name}</span>?
-          </p>
-        </div>
-      </MModal>
     </SidebarLayout>
   )
 }
-
