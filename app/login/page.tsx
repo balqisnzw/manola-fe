@@ -15,7 +15,7 @@ const ROLE_REDIRECT: Record<string, string> = {
   ADMIN: "/admin/dashboard",
   KASIR: "/kasir/dashboard",
   PACKAGING: "/packaging/dashboard",
-  USER: "/profil",
+  USER: "/",
 };
 
 export default function LoginPage() {
@@ -48,7 +48,7 @@ export default function LoginPage() {
       setSuccessMsg(response.message || "Login berhasil!");
 
       const { user } = response;
-      const redirect = ROLE_REDIRECT[user.role] ?? "/profil";
+      const redirect = ROLE_REDIRECT[user.role] ?? "/";
 
       // Beri sedikit waktu untuk melihat pesan sukses sebelum redirect
       setTimeout(() => {

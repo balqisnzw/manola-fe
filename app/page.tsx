@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Search, ShoppingCart, User, Menu, X, Star } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { MInput } from "@/components/manola/MInput";
 import { MBadge } from "@/components/manola/MBadge";
+import { authService, type User as AuthUser } from "@/lib/services/authService";
 
 const categories = [
   { id: "tshirt", name: "T-Shirt", count: 24 },
@@ -35,6 +36,15 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cartCount] = useState(2);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    try {
+      setCurrentUser(authService.getCurrentUser());
+    } catch (err) {
+      console.error("Error fetching current user:", err);
+    }
+  }, []);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -90,7 +100,20 @@ export default function HomePage() {
                 )}
               </Link>
 
-              <Link href="/login" className="p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
+              <Link
+                href={
+                  currentUser
+                    ? {
+                        OWNER: "/owner/dashboard",
+                        ADMIN: "/admin/dashboard",
+                        KASIR: "/kasir/dashboard",
+                        PACKAGING: "/packaging/dashboard",
+                        USER: "/profil",
+                      }[currentUser.role] || "/profil"
+                    : "/login"
+                }
+                className="p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors"
+              >
                 <User className="w-5 h-5 text-[var(--brand-black)]" />
               </Link>
 
