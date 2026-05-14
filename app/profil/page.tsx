@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { User, Package, MapPin, Heart, Settings, LogOut, ChevronRight, Clock } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { MBadge } from "@/components/manola/MBadge";
+import { authService } from "@/lib/services";
 
 const orders = [
   { id: "MNL-2026001", date: "20 Apr 2026", status: "Dikirim", total: 1497000, items: 3 },
@@ -57,7 +58,10 @@ export default function ProfilePage() {
           <div className="flex items-center justify-between h-16">
             <Link href="/" className="text-2xl font-bold text-[var(--brand-black)]">MANOLA</Link>
             <button
-              onClick={() => router.push("/")}
+              onClick={() => {
+                authService.logout();
+                router.push("/login");
+              }}
               className="flex items-center gap-2 text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors"
             >
               <LogOut className="w-5 h-5" />
