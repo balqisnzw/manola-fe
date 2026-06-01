@@ -84,8 +84,8 @@ function Calendar({
             : 'rounded-md pl-2 pr-1 flex items-center gap-1 text-sm h-8 [&>svg]:text-muted-foreground [&>svg]:size-3.5',
           defaultClassNames.caption_label,
         ),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        table: 'w-full border-collapse' as any,
+        // 'table' was removed from ClassNames in newer react-day-picker versions
+        ...({ table: 'w-full border-collapse' } as Record<string, string>),
         weekdays: cn('flex', defaultClassNames.weekdays),
         weekday: cn(
           'text-muted-foreground rounded-md flex-1 font-normal text-[0.8rem] select-none',

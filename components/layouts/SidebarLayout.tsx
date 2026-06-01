@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { LogOut, LucideIcon } from "lucide-react"
+import { removeToken } from "@/lib/api"
 
 interface NavItem {
   label: string
@@ -18,8 +19,19 @@ interface SidebarLayoutProps {
   userRole: string
 }
 
-export function SidebarLayout({ navItems, children, userName, userRole }: SidebarLayoutProps) {
+export function SidebarLayout({
+  navItems,
+  children,
+  userName,
+  userRole,
+}: SidebarLayoutProps) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    removeToken()
+    router.push("/login")
+  }
 
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
@@ -27,7 +39,9 @@ export function SidebarLayout({ navItems, children, userName, userRole }: Sideba
       <aside className="fixed left-0 top-0 w-60 h-full bg-white border-r border-[#E5E7EB] flex flex-col z-40">
         {/* Logo */}
         <div className="px-6 py-5 border-b border-[#E5E7EB]">
-          <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">MANOLA</span>
+          <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">
+            MANOLA
+          </span>
         </div>
 
         {/* User block */}
@@ -36,9 +50,15 @@ export function SidebarLayout({ navItems, children, userName, userRole }: Sideba
             <div className="w-8 h-8 rounded-full bg-[#0A0A0A] text-white flex items-center justify-center text-sm font-medium">
               {userName.charAt(0).toUpperCase()}
             </div>
+
             <div>
-              <p className="text-sm font-medium text-[#0A0A0A]">{userName}</p>
-              <p className="text-xs text-[#6B7280]">{userRole}</p>
+              <p className="text-sm font-medium text-[#0A0A0A]">
+                {userName}
+              </p>
+
+              <p className="text-xs text-[#6B7280]">
+                {userRole}
+              </p>
             </div>
           </div>
         </div>
@@ -46,8 +66,12 @@ export function SidebarLayout({ navItems, children, userName, userRole }: Sideba
         {/* Navigation */}
         <nav className="flex-1 py-4">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
+            const isActive =
+              pathname === item.href ||
+              pathname.startsWith(item.href + "/")
+
             const Icon = item.icon
+
             return (
               <Link
                 key={item.href}
@@ -68,7 +92,10 @@ export function SidebarLayout({ navItems, children, userName, userRole }: Sideba
 
         {/* Logout */}
         <div className="p-4 border-t border-[#E5E7EB]">
-          <button className="flex items-center gap-3 px-2 py-2 text-sm text-red-500 hover:bg-red-50 rounded-md w-full transition-colors">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-2 py-2 text-sm text-red-500 hover:bg-red-50 rounded-md w-full transition-colors"
+          >
             <LogOut className="w-4 h-4" />
             Keluar
           </button>

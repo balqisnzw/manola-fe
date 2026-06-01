@@ -7,6 +7,8 @@ import { MButton } from "@/components/manola/MButton";
 import { MInput } from "@/components/manola/MInput";
 import { MBadge } from "@/components/manola/MBadge";
 import { authService, type User as AuthUser } from "@/lib/services/authService";
+import { useCart } from "@/lib/CartContext";
+import { formatPrice } from "@/lib/utils";
 
 const categories = [
   { id: "tshirt", name: "T-Shirt", count: 24 },
@@ -27,15 +29,13 @@ const products = [
   { id: 8, name: "Urban Warrior Jacket", price: 799000, originalPrice: 899000, image: "/placeholder.svg", category: "Jacket", rating: 4.7, reviews: 92, isNew: false },
 ];
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
-}
+// formatPrice is now imported from @/lib/utils
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [cartCount] = useState(2);
+  const { cartCount } = useCart();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
@@ -91,14 +91,16 @@ export default function HomePage() {
                 />
               </div>
 
-              <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
-                <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </Link>
+              {currentUser?.role === "USER" && (
+                <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
+                  <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              )}
 
               <Link
                 href={

@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, ShoppingCart, Heart, Star, Truck, Shield, RefreshCw } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { MBadge } from "@/components/manola/MBadge";
+import { authService, type User as AuthUser } from "@/lib/services/authService";
+import { useCart } from "@/lib/CartContext";
+import { formatPrice } from "@/lib/utils";
+import { toast } from "sonner";
 
 const products = [
   { id: 1, name: "Urban Shadow Tee", price: 299000, originalPrice: 399000, images: ["/placeholder.svg", "/placeholder.svg", "/placeholder.svg"], category: "T-Shirt", rating: 4.8, reviews: 124, isNew: true, description: "Kaos premium dengan bahan cotton combed 30s yang lembut dan nyaman. Desain minimalis dengan detail bordir yang presisi. Cocok untuk gaya kasual sehari-hari.", sizes: ["S", "M", "L", "XL", "XXL"], colors: ["Hitam", "Putih", "Abu-abu"], stock: 45 },
@@ -20,9 +24,7 @@ const reviews = [
   { id: 3, name: "Agus Pratama", rating: 5, date: "2 minggu lalu", comment: "Sudah ke-3 kalinya beli di Manola, selalu puas dengan kualitasnya!", avatar: "/placeholder.svg" },
 ];
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
-}
+// formatPrice is now imported from @/lib/utils
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -35,13 +37,35 @@ export default function ProductDetailPage() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    try {
+      setCurrentUser(authService.getCurrentUser());
+    } catch (err) {
+      console.error("Error fetching current user:", err);
+    }
+  }, []);
+
+  const { cartCount, addItem } = useCart();
 
   const handleAddToCart = () => {
     if (!selectedSize || !selectedColor) {
-      alert("Pilih ukuran dan warna terlebih dahulu");
+      toast.error("Pilih ukuran dan warna terlebih dahulu");
       return;
     }
-    router.push("/cart");
+    addItem({
+      variantId: product.id * 100 + product.sizes.indexOf(selectedSize),
+      productId: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.images[0],
+      size: selectedSize,
+      color: selectedColor,
+      quantity,
+      stock: product.stock,
+    });
+    toast.success(`${product.name} (${selectedSize}, ${selectedColor}) ditambahkan ke keranjang`);
   };
 
   return (
@@ -55,10 +79,12 @@ export default function ProductDetailPage() {
               <span className="hidden sm:inline">Kembali</span>
             </button>
             <Link href="/" className="text-2xl font-bold text-[var(--brand-black)]">MANOLA</Link>
-            <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
-              <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">2</span>
-            </Link>
+            {currentUser?.role === "USER" && (
+              <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
+                <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">{cartCount}</span>
+              </Link>
+            )}
           </div>
         </div>
       </header>

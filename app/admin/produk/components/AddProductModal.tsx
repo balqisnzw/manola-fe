@@ -31,7 +31,10 @@ export function AddProductModal({
   const photoInputRef = useRef<HTMLInputElement>(null)
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) onPhotosChange(Array.from(e.target.files))
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+      onPhotosChange([...photos, ...newFiles].slice(0, 5))
+    }
   }
 
   const addVariantRow = () =>

@@ -1,44 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
+import { useCart } from "@/lib/CartContext";
+import { formatPrice } from "@/lib/utils";
 
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  image: string;
-  size: string;
-  color: string;
-  quantity: number;
-  stock: number;
-}
-
-const initialCart: CartItem[] = [
-  { id: 1, name: "Urban Shadow Tee", price: 299000, image: "/placeholder.svg", size: "L", color: "Hitam", quantity: 2, stock: 45 },
-  { id: 4, name: "Neo Tokyo Jacket", price: 899000, image: "/placeholder.svg", size: "M", color: "Hitam", quantity: 1, stock: 15 },
-];
-
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
-}
 
 export default function CartPage() {
   const router = useRouter();
-  const [cartItems, setCartItems] = useState<CartItem[]>(initialCart);
-
-  const updateQuantity = (id: number, newQuantity: number) => {
-    setCartItems((items) =>
-      items.map((item) => (item.id === id ? { ...item, quantity: Math.max(1, Math.min(item.stock, newQuantity)) } : item))
-    );
-  };
-
-  const removeItem = (id: number) => {
-    setCartItems((items) => items.filter((item) => item.id !== id));
-  };
+  const { items: cartItems, updateQuantity, removeItem } = useCart();
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = subtotal >= 500000 ? 0 : 25000;
@@ -75,7 +47,7 @@ export default function CartPage() {
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
               {cartItems.map((item) => (
-                <div key={item.id} className="bg-[var(--brand-white)] rounded-xl border border-[var(--brand-border)] p-4 sm:p-6">
+                <div key={item.variantId} className="bg-[var(--brand-white)] rounded-xl border border-[var(--brand-border)] p-4 sm:p-6">
                   <div className="flex gap-4">
                     <div className="w-24 h-24 sm:w-32 sm:h-32 bg-[var(--brand-gray)] rounded-lg overflow-hidden flex-shrink-0">
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
@@ -89,7 +61,7 @@ export default function CartPage() {
                           </p>
                         </div>
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => removeItem(item.variantId)}
                           className="p-2 text-[var(--brand-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -98,14 +70,14 @@ export default function CartPage() {
                       <div className="flex items-end justify-between mt-4">
                         <div className="flex items-center border border-[var(--brand-border)] rounded-lg">
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
                             className="p-2 hover:bg-[var(--brand-gray)] transition-colors rounded-l-lg"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                           <span className="w-10 text-center font-medium">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
                             className="p-2 hover:bg-[var(--brand-gray)] transition-colors rounded-r-lg"
                           >
                             <Plus className="w-4 h-4" />

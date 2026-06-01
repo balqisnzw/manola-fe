@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CreditCard, Truck, MapPin } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { MInput } from "@/components/manola/MInput";
+import { useCart } from "@/lib/CartContext";
+import { formatPrice } from "@/lib/utils";
+import { toast } from "sonner";
 
-const cartItems = [
-  { id: 1, name: "Urban Shadow Tee", price: 299000, image: "/placeholder.svg", size: "L", color: "Hitam", quantity: 2 },
-  { id: 4, name: "Neo Tokyo Jacket", price: 899000, image: "/placeholder.svg", size: "M", color: "Hitam", quantity: 1 },
-];
+// Cart items are now provided by CartContext below
 
 const shippingOptions = [
   { id: "jne-reg", name: "JNE Reguler", price: 25000, eta: "3-5 hari" },
@@ -24,12 +24,11 @@ const paymentMethods = [
   { id: "cod", name: "Bayar di Tempat (COD)", description: "Cash on Delivery" },
 ];
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(price);
-}
+// formatPrice is now imported from @/lib/utils
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { items: cartItems, clearCart } = useCart();
   const [step, setStep] = useState(1);
   const [selectedShipping, setSelectedShipping] = useState(shippingOptions[0].id);
   const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0].id);
@@ -52,8 +51,9 @@ export default function CheckoutPage() {
   };
 
   const handleSubmit = () => {
-    alert("Pesanan berhasil dibuat! Anda akan diarahkan ke halaman pembayaran.");
-    router.push("/");
+    toast.success("Pesanan berhasil dibuat! Anda akan diarahkan ke halaman utama.");
+    clearCart();
+    setTimeout(() => router.push("/"), 1500);
   };
 
   return (
@@ -221,7 +221,7 @@ export default function CheckoutPage() {
               <h2 className="text-lg font-semibold text-[var(--brand-black)] mb-4">Ringkasan Pesanan</h2>
               <div className="space-y-4 mb-4">
                 {cartItems.map((item) => (
-                  <div key={item.id} className="flex gap-3">
+                  <div key={item.variantId} className="flex gap-3">
                     <div className="w-16 h-16 bg-[var(--brand-gray)] rounded-lg overflow-hidden flex-shrink-0">
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>

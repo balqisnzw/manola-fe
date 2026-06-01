@@ -2,11 +2,18 @@
 
 import { useState } from "react"
 import Link from "next/link"
+
+import { LogoutButton } from "@/components/auth/LogoutButton"
+
 import { NavbarLayout } from "@/components/layouts/NavbarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MInput } from "@/components/manola/MInput"
 import { MButton } from "@/components/manola/MButton"
-import { Settings, LogOut, CheckCircle } from "lucide-react"
+
+import {
+  Settings,
+  CheckCircle,
+} from "lucide-react"
 
 const navItems = [
   { label: "Pesanan", href: "/packaging/pesanan" },
@@ -28,16 +35,21 @@ export default function PackagingPengaturanPage() {
   }
 
   const rightContent = (
-    <div className="flex items-center gap-4">
-      <span className="text-sm text-[#6B7280]">Lisa Permata</span>
-      <Link href="/packaging/pengaturan" className="text-[#0A0A0A]">
-        <Settings className="w-5 h-5" />
-      </Link>
-      <button className="text-red-500 hover:text-red-600">
-        <LogOut className="w-5 h-5" />
-      </button>
-    </div>
-  )
+  <div className="flex items-center gap-4">
+    <span className="text-sm text-[#6B7280]">
+      Maya Sari
+    </span>
+
+    <Link
+      href="/kasir/pengaturan"
+      className="text-[#0A0A0A]"
+    >
+      <Settings className="w-5 h-5" />
+    </Link>
+
+    <LogoutButton />
+  </div>
+)
 
   return (
     <NavbarLayout navItems={navItems} rightContent={rightContent}>

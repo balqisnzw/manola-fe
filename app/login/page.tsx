@@ -9,12 +9,12 @@ import { MInput } from "@/components/manola/MInput";
 import { authService } from "@/lib/services";
 import { ApiError } from "@/lib/api";
 
-// Role → redirect map
+
 const ROLE_REDIRECT: Record<string, string> = {
   OWNER: "/owner/dashboard",
   ADMIN: "/admin/dashboard",
-  KASIR: "/kasir/dashboard",
-  PACKAGING: "/packaging/dashboard",
+  KASIR: "/kasir/transaksi",
+  PACKAGING: "/packaging/pesanan",
   USER: "/",
 };
 

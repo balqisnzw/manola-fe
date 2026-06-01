@@ -97,6 +97,15 @@ export async function apiRequest<T = unknown>(
   }
 
   if (!response.ok) {
+    // ── Auto-logout on 401 (token expired / invalid) ──────────────────────
+    if (response.status === 401 && typeof window !== "undefined") {
+      removeToken();
+      // Also clear cookies so middleware stops granting access
+      document.cookie = "manola_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      document.cookie = "manola_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      window.location.href = "/login";
+    }
+
     const message =
       (data as { message?: string })?.message ??
       `Request failed with status ${response.status}`;

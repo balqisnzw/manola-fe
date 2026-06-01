@@ -2,13 +2,24 @@
 
 import { useState } from "react"
 import Link from "next/link"
+
+import { LogoutButton } from "@/components/auth/LogoutButton"
+
 import { NavbarLayout } from "@/components/layouts/NavbarLayout"
 import { StatCard } from "@/components/manola/StatCard"
 import { MButton } from "@/components/manola/MButton"
 import { MBadge } from "@/components/manola/MBadge"
 import { MModal } from "@/components/manola/MModal"
 import { MTable } from "@/components/manola/MTable"
-import { Package, Globe, Store, Settings, LogOut, CheckCircle } from "lucide-react"
+
+import {
+  Package,
+  Globe,
+  Store,
+  Settings,
+  CheckCircle,
+} from "lucide-react"
+import { toast } from "sonner"
 
 const navItems = [
   { label: "Pesanan", href: "/packaging/pesanan" },
@@ -56,32 +67,48 @@ export default function PackagingPesananPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null)
-  const [showToast, setShowToast] = useState(false)
+  const [resiInput, setResiInput] = useState("")
 
   const onlineOrders = orders.filter((o) => o.type === "online")
   const offlineOrders = orders.filter((o) => o.type === "offline")
   const displayOrders = activeTab === "online" ? onlineOrders : offlineOrders
 
   const handleComplete = (order: Order) => {
+    if (order.type === "online" && !resiInput.trim()) {
+      toast.error("Harap masukkan nomor resi pengiriman terlebih dahulu")
+      return
+    }
+    
     setOrders(orders.filter((o) => o.id !== order.id))
     setShowConfirmModal(false)
+    
+    if (order.type === "online") {
+      toast.success(`Pesanan berhasil dikirim dengan Resi: ${resiInput}`)
+    } else {
+      toast.success("Pesanan offline berhasil diselesaikan")
+    }
+    
+    setResiInput("")
     setOrderToConfirm(null)
     setSelectedOrder(null)
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
   }
 
   const rightContent = (
-    <div className="flex items-center gap-4">
-      <span className="text-sm text-[#6B7280]">Lisa Permata</span>
-      <Link href="/packaging/pengaturan" className="text-[#6B7280] hover:text-[#0A0A0A]">
-        <Settings className="w-5 h-5" />
-      </Link>
-      <button className="text-red-500 hover:text-red-600">
-        <LogOut className="w-5 h-5" />
-      </button>
-    </div>
-  )
+  <div className="flex items-center gap-4">
+    <span className="text-sm text-[#6B7280]">
+      Lisa Permata
+    </span>
+
+    <Link
+      href="/packaging/pengaturan"
+      className="text-[#6B7280] hover:text-[#0A0A0A]"
+    >
+      <Settings className="w-5 h-5" />
+    </Link>
+
+    <LogoutButton />
+  </div>
+)
 
   const itemColumns = [
     { key: "photo", label: "Foto", render: () => <div className="w-10 h-10 bg-gray-100 rounded-md" /> },
@@ -224,6 +251,7 @@ export default function PackagingPesananPage() {
         onClose={() => {
           setShowConfirmModal(false)
           setOrderToConfirm(null)
+          setResiInput("")
         }}
         maxWidth="xs"
         footer={
@@ -233,12 +261,14 @@ export default function PackagingPesananPage() {
               onClick={() => {
                 setShowConfirmModal(false)
                 setOrderToConfirm(null)
+                setResiInput("")
               }}
             >
               Batal
             </MButton>
             <MButton
               variant="primary"
+              disabled={orderToConfirm?.type === "online" && !resiInput.trim()}
               onClick={() => orderToConfirm && handleComplete(orderToConfirm)}
             >
               Konfirmasi
@@ -246,24 +276,37 @@ export default function PackagingPesananPage() {
           </>
         }
       >
-        <div className="text-center py-2">
-          <p className="font-semibold text-[#0A0A0A]">Konfirmasi Pengemasan</p>
-          <p className="text-sm text-[#6B7280] mt-2">
-            Tandai pesanan <span className="font-mono">{orderToConfirm?.id}</span> sebagai selesai dikemas?
-          </p>
-          <p className="text-xs text-[#6B7280] mt-1">
-            {`Status akan berubah menjadi 'Dikirim'`}
-          </p>
+        <div className="py-2">
+          <div className="text-center">
+            <p className="font-semibold text-[#0A0A0A]">Konfirmasi Pengemasan</p>
+            <p className="text-sm text-[#6B7280] mt-2">
+              Tandai pesanan <span className="font-mono">{orderToConfirm?.id}</span> sebagai selesai dikemas?
+            </p>
+            <p className="text-xs text-[#6B7280] mt-1">
+              {orderToConfirm?.type === "online" 
+                ? "Status akan berubah menjadi 'Dikirim'" 
+                : "Status akan berubah menjadi 'Selesai' (Offline)"}
+            </p>
+          </div>
+
+          {orderToConfirm?.type === "online" && (
+            <div className="mt-4 text-left">
+              <label className="block text-xs font-semibold text-[#0A0A0A] mb-1.5">
+                Nomor Resi Pengiriman *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="Masukkan No. Resi (misal: JP12345678)"
+                value={resiInput}
+                onChange={(e) => setResiInput(e.target.value)}
+                className="w-full px-3 py-2 border border-[#E5E7EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A0A0A] focus:border-transparent transition-all"
+              />
+            </div>
+          )}
         </div>
       </MModal>
 
-      {/* Toast */}
-      {showToast && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
-          <CheckCircle className="w-5 h-5" />
-          <span className="text-sm">Pesanan berhasil ditandai sebagai Dikirim</span>
-        </div>
-      )}
     </NavbarLayout>
   )
 }
