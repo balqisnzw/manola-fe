@@ -9,9 +9,8 @@ import { MBadge } from "@/components/manola/MBadge"
 import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, ShoppingCart, CheckCircle } from "lucide-react"
 import { MLoader } from "@/components/manola/MLoader"
 
-import { orderService, productService, authService } from "@/lib/services"
-import type { Order } from "@/lib/services/orderService"
-import type { Product } from "@/lib/services/productService"
+import { authService, analyticsService } from "@/lib/services"
+import type { DashboardData, LowStockItem } from "@/lib/services/analyticsService"
 
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -23,17 +22,10 @@ const navItems = [
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]
 
-interface LowStockItem {
-  id: number
-  productName: string
-  size: string
-  color: string
-  stock: number
-}
+// (LowStockItem is now imported from analyticsService)
 
 export default function AdminDashboardPage() {
-  const [orders, setOrders] = useState<Order[]>([])
-  const [products, setProducts] = useState<Product[]>([])
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   const currentUser = authService.getCurrentUser()
@@ -45,42 +37,14 @@ export default function AdminDashboardPage() {
   async function loadData() {
     setLoading(true)
     try {
-      const [ordersData, productsData] = await Promise.all([
-        orderService.getAll(),
-        productService.getAll(),
-      ])
-      setOrders(ordersData)
-      setProducts(productsData)
+      const dashboardData = await analyticsService.getDashboard()
+      setData(dashboardData)
     } catch (err) {
       console.error("Failed to load dashboard data:", err)
     } finally {
       setLoading(false)
     }
   }
-
-  // Count today's orders
-  const todayOrderCount = useMemo(() => {
-    const today = new Date().toDateString()
-    return orders.filter((o) => new Date(o.createdAt).toDateString() === today).length
-  }, [orders])
-
-  // Find low stock variants (stock <= 3)
-  const lowStockProducts = useMemo<LowStockItem[]>(() => {
-    const items: LowStockItem[] = []
-    products.forEach((product) => {
-      product.variants?.forEach((variant) => {
-        if (variant.stock <= 3) {
-          items.push({
-            id: variant.id,
-            productName: product.name,
-            size: variant.size,
-            color: variant.color ?? "-",
-            stock: variant.stock })
-        }
-      })
-    })
-    return items.sort((a, b) => a.stock - b.stock)
-  }, [products])
 
   const columns = [
     {
@@ -97,7 +61,7 @@ export default function AdminDashboardPage() {
       ) },
   ]
 
-  const hasLowStock = lowStockProducts.length > 0
+  const hasLowStock = data && data.lowStockProducts.length > 0
 
   return (
     <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Admin"} userRole="Admin">
@@ -113,7 +77,7 @@ export default function AdminDashboardPage() {
           <div className="max-w-xs mb-6">
             <StatCard
               label="Pesanan Masuk Hari Ini"
-              value={String(todayOrderCount)}
+              value={String(data?.todayOrderCount ?? 0)}
               caption="pesanan baru"
               icon={ShoppingCart}
             />
@@ -124,12 +88,12 @@ export default function AdminDashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-[#0A0A0A]">Stok Hampir Habis</h2>
               {hasLowStock && (
-                <MBadge variant="danger">{lowStockProducts.length} varian</MBadge>
+                <MBadge variant="danger">{data?.lowStockProducts.length} varian</MBadge>
               )}
             </div>
 
             {hasLowStock ? (
-              <MTable columns={columns} data={lowStockProducts} />
+              <MTable columns={columns} data={data!.lowStockProducts} />
             ) : (
               <div className="flex flex-col items-center justify-center py-12">
                 <CheckCircle className="w-12 h-12 text-green-500 mb-3" />

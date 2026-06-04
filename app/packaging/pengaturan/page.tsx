@@ -15,6 +15,8 @@ import {
   CheckCircle,
 } from "lucide-react"
 
+import { authService } from "@/lib/services"
+
 const navItems = [
   { label: "Pesanan", href: "/packaging/pesanan" },
 ]
@@ -24,24 +26,39 @@ export default function PackagingPengaturanPage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const currentUser = authService.getCurrentUser()
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setShowSuccess(true)
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
-    setTimeout(() => setShowSuccess(false), 3000)
+    if (newPassword !== confirmPassword) {
+      alert("Konfirmasi password baru tidak cocok.")
+      return
+    }
+    setLoading(true)
+    try {
+      await authService.changePassword(currentPassword, newPassword)
+      setShowSuccess(true)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setTimeout(() => setShowSuccess(false), 3000)
+    } catch (err: any) {
+      alert("Gagal mengubah password: " + (err.message || "Terjadi kesalahan"))
+    } finally {
+      setLoading(false)
+    }
   }
 
   const rightContent = (
   <div className="flex items-center gap-4">
     <span className="text-sm text-[#6B7280]">
-      Maya Sari
+      {currentUser?.nama ?? "Packaging"}
     </span>
 
     <Link
-      href="/kasir/pengaturan"
+      href="/packaging/pengaturan"
       className="text-[#0A0A0A]"
     >
       <Settings className="w-5 h-5" />
@@ -91,8 +108,8 @@ export default function PackagingPengaturanPage() {
               showPasswordToggle
               required
             />
-            <MButton type="submit" variant="primary" className="mt-4">
-              Simpan Password
+            <MButton type="submit" variant="primary" className="mt-4" disabled={loading}>
+              {loading ? "Menyimpan..." : "Simpan Password"}
             </MButton>
           </form>
         </MCard>

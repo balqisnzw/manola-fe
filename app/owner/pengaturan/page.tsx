@@ -6,6 +6,7 @@ import { MCard } from "@/components/manola/MCard"
 import { MInput } from "@/components/manola/MInput"
 import { MButton } from "@/components/manola/MButton"
 import { LayoutDashboard, Users, UserCog, Settings, CheckCircle } from "lucide-react"
+import { authService } from "@/lib/services"
 
 const navItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
@@ -19,19 +20,33 @@ export default function OwnerPengaturanPage() {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const currentUser = authService.getCurrentUser()
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Dummy submit
-    setShowSuccess(true)
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
-    setTimeout(() => setShowSuccess(false), 3000)
+    if (newPassword !== confirmPassword) {
+      alert("Konfirmasi password baru tidak cocok.")
+      return
+    }
+    setLoading(true)
+    try {
+      await authService.changePassword(currentPassword, newPassword)
+      setShowSuccess(true)
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+      setTimeout(() => setShowSuccess(false), 3000)
+    } catch (err: any) {
+      alert("Gagal mengubah password: " + (err.message || "Terjadi kesalahan"))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <SidebarLayout navItems={navItems} userName="Budi Santoso" userRole="Owner">
+    <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Owner"} userRole="Owner">
       <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Pengaturan</h1>
 
       <MCard className="max-w-md">
@@ -69,8 +84,8 @@ export default function OwnerPengaturanPage() {
             showPasswordToggle
             required
           />
-          <MButton type="submit" variant="primary" className="mt-4">
-            Simpan Password
+          <MButton type="submit" variant="primary" className="mt-4" disabled={loading}>
+            {loading ? "Menyimpan..." : "Simpan Password"}
           </MButton>
         </form>
       </MCard>
