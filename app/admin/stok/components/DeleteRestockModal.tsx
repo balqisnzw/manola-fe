@@ -2,7 +2,8 @@
 
 import { MModal } from "@/components/manola/MModal"
 import { MButton } from "@/components/manola/MButton"
-import { Loader2, Trash2 } from "lucide-react"
+import {  Trash2 } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
 import type { RestockItem } from "@/lib/services/restockService"
 
 interface DeleteRestockModalProps {
@@ -18,8 +19,7 @@ export function DeleteRestockModal({
   onClose,
   restock,
   onConfirm,
-  submitting,
-}: DeleteRestockModalProps) {
+  submitting }: DeleteRestockModalProps) {
   return (
     <MModal
       isOpen={isOpen}
@@ -32,7 +32,7 @@ export function DeleteRestockModal({
           </MButton>
           <MButton variant="danger" onClick={onConfirm} disabled={submitting}>
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-1 inline" />Menghapus...</>
+              <MLoader inline size="sm" text="Menghapus..." />
             ) : (
               "Hapus"
             )}

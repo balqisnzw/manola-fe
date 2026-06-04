@@ -86,7 +86,8 @@ export const productService = {
    * GET /products/:id
    */
   async getById(id: number): Promise<Product> {
-    return api.get<Product>(`/products/${id}`);
+    const res = await api.get<ApiResponse<Product>>(`/products/${id}`);
+    return res.data;
   },
 
   /**
@@ -133,7 +134,8 @@ export const productService = {
     variantId: number,
     payload: Partial<CreateVariantPayload>
   ): Promise<ProductVariant> {
-    return api.put<ProductVariant>(`/products/variants/${variantId}`, payload);
+    const res = await api.put<ApiResponse<ProductVariant>>(`/products/variants/${variantId}`, payload);
+    return res.data;
   },
 
   /**

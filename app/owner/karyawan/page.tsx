@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MTable } from "@/components/manola/MTable"
@@ -9,6 +9,11 @@ import { MInput } from "@/components/manola/MInput"
 import { MModal } from "@/components/manola/MModal"
 import { MBadge } from "@/components/manola/MBadge"
 import { LayoutDashboard, Users, UserCog, Settings } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
+import { employeeService, authService } from "@/lib/services"
+import type { User } from "@/lib/services/authService"
+import type { EmployeeRole } from "@/lib/services/miscServices"
+import { toast } from "sonner"
 
 const navItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
@@ -17,20 +22,15 @@ const navItems = [
   { label: "Pengaturan", href: "/owner/pengaturan", icon: Settings },
 ]
 
-const initialEmployees = [
-  { id: 1, name: "Rina Dewi", email: "rina.dewi@manola.com", role: "Admin", createdAt: "10 Jan 2024" },
-  { id: 2, name: "Andi Pratama", email: "andi.p@manola.com", role: "Admin", createdAt: "15 Jan 2024" },
-  { id: 3, name: "Maya Sari", email: "maya.s@manola.com", role: "Kasir", createdAt: "20 Jan 2024" },
-  { id: 4, name: "Dedi Kurniawan", email: "dedi.k@manola.com", role: "Kasir", createdAt: "25 Jan 2024" },
-  { id: 5, name: "Lisa Permata", email: "lisa.p@manola.com", role: "Packaging", createdAt: "1 Feb 2024" },
-  { id: 6, name: "Rudi Hermawan", email: "rudi.h@manola.com", role: "Packaging", createdAt: "5 Feb 2024" },
-]
-
 export default function OwnerKaryawanPage() {
-  const [employees, setEmployees] = useState(initialEmployees)
+  const [employees, setEmployees] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<typeof employees[0] | null>(null)
+  const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  const currentUser = authService.getCurrentUser()
 
   // Form state
   const [formData, setFormData] = useState({
@@ -38,55 +38,108 @@ export default function OwnerKaryawanPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "Admin",
+    role: "ADMIN" as EmployeeRole,
   })
 
-  const handleAddEmployee = () => {
-    const newEmployee = {
-      id: employees.length + 1,
-      name: formData.name,
-      email: formData.email,
-      role: formData.role,
-      createdAt: new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
+  useEffect(() => {
+    loadEmployees()
+  }, [])
+
+  async function loadEmployees() {
+    setLoading(true)
+    try {
+      const data = await employeeService.getAll()
+      setEmployees(data)
+    } catch (err) {
+      console.error("Failed to load employees:", err)
+    } finally {
+      setLoading(false)
     }
-    setEmployees([...employees, newEmployee])
-    setShowAddModal(false)
-    setFormData({ name: "", email: "", password: "", confirmPassword: "", role: "Admin" })
   }
 
-  const handleDeleteEmployee = () => {
-    if (selectedEmployee) {
+  const handleAddEmployee = async () => {
+    if (!formData.name || !formData.email || !formData.password) {
+      toast.error("Semua field wajib diisi")
+      return
+    }
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Password dan konfirmasi password tidak cocok")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const newEmployee = await employeeService.create({
+        nama: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+      })
+      setEmployees([...employees, newEmployee])
+      setShowAddModal(false)
+      setFormData({ name: "", email: "", password: "", confirmPassword: "", role: "ADMIN" })
+      toast.success("Karyawan berhasil ditambahkan")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal menambahkan karyawan"
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteEmployee = async () => {
+    if (!selectedEmployee) return
+
+    setSubmitting(true)
+    try {
+      await employeeService.delete(selectedEmployee.id)
       setEmployees(employees.filter((e) => e.id !== selectedEmployee.id))
       setShowDeleteModal(false)
       setSelectedEmployee(null)
+      toast.success("Karyawan berhasil dihapus")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal menghapus karyawan"
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function getRoleBadgeVariant(role: string) {
+    switch (role) {
+      case "ADMIN": return "info"
+      case "KASIR": return "warning"
+      case "PACKAGING": return "gray"
+      default: return "gray"
     }
   }
 
   const columns = [
-    { key: "name", label: "Nama", render: (item: typeof employees[0]) => <span className="font-medium">{item.name}</span> },
-    { key: "email", label: "Email" },
+    { key: "name", label: "Nama", render: (item: User) => <span className="font-medium">{item.nama}</span> },
+    { key: "email", label: "Email", render: (item: User) => item.email },
     {
       key: "role",
       label: "Role",
-      render: (item: typeof employees[0]) => (
-        <MBadge
-          variant={
-            item.role === "Admin"
-              ? "info"
-              : item.role === "Kasir"
-              ? "warning"
-              : "gray"
-          }
-        >
+      render: (item: User) => (
+        <MBadge variant={getRoleBadgeVariant(item.role) as "info" | "warning" | "gray"}>
           {item.role}
         </MBadge>
       ),
     },
-    { key: "createdAt", label: "Tanggal Dibuat" },
+    {
+      key: "createdAt",
+      label: "Tanggal Dibuat",
+      render: (item: User) =>
+        new Date(item.createdAt).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        }),
+    },
     {
       key: "action",
       label: "Aksi",
-      render: (item: typeof employees[0]) => (
+      render: (item: User) => (
         <MButton
           variant="ghost"
           size="sm"
@@ -103,17 +156,21 @@ export default function OwnerKaryawanPage() {
   ]
 
   return (
-    <SidebarLayout navItems={navItems} userName="Budi Santoso" userRole="Owner">
-      <div className="flex items-center justify-between mb-6">
+    <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Owner"} userRole="Owner">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-semibold text-[#0A0A0A]">Karyawan</h1>
-        <MButton variant="primary" onClick={() => setShowAddModal(true)}>
+        <MButton variant="primary" onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
           + Tambah Karyawan
         </MButton>
       </div>
 
-      <MCard padding="sm">
-        <MTable columns={columns} data={employees} />
-      </MCard>
+      {loading ? (
+        <MLoader />
+      ) : (
+        <MCard padding="sm">
+          <MTable columns={columns} data={employees} />
+        </MCard>
+      )}
 
       {/* Add Employee Modal */}
       <MModal
@@ -126,8 +183,8 @@ export default function OwnerKaryawanPage() {
             <MButton variant="ghost" onClick={() => setShowAddModal(false)}>
               Batal
             </MButton>
-            <MButton variant="primary" onClick={handleAddEmployee}>
-              Simpan
+            <MButton variant="primary" onClick={handleAddEmployee} disabled={submitting}>
+              {submitting ? "Menyimpan..." : "Simpan"}
             </MButton>
           </>
         }
@@ -162,12 +219,12 @@ export default function OwnerKaryawanPage() {
             <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Role</label>
             <select
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as EmployeeRole })}
               className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white focus:border-[#0A0A0A] focus:outline-none"
             >
-              <option value="Admin">Admin</option>
-              <option value="Kasir">Kasir</option>
-              <option value="Packaging">Packaging</option>
+              <option value="ADMIN">Admin</option>
+              <option value="KASIR">Kasir</option>
+              <option value="PACKAGING">Packaging</option>
             </select>
           </div>
         </div>
@@ -183,15 +240,15 @@ export default function OwnerKaryawanPage() {
             <MButton variant="ghost" onClick={() => setShowDeleteModal(false)}>
               Batal
             </MButton>
-            <MButton variant="danger" onClick={handleDeleteEmployee}>
-              Hapus
+            <MButton variant="danger" onClick={handleDeleteEmployee} disabled={submitting}>
+              {submitting ? "Menghapus..." : "Hapus"}
             </MButton>
           </>
         }
       >
         <div className="text-center py-2">
           <p className="text-[#0A0A0A]">
-            Hapus akun <span className="font-semibold">{selectedEmployee?.name}</span>?
+            Hapus akun <span className="font-semibold">{selectedEmployee?.nama}</span>?
           </p>
           <p className="text-sm text-[#6B7280] mt-2">
             Tindakan ini tidak dapat dibatalkan.

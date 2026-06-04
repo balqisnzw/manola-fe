@@ -4,9 +4,12 @@ import { useRef } from "react"
 import { MModal } from "@/components/manola/MModal"
 import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
-import { Upload, X, Loader2 } from "lucide-react"
-import type { Product } from "@/lib/services/productService"
+import { Upload, X } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
 import { SIZES, type ProductFormState, type VariantRow } from "./types"
+import { getImageUrl } from "@/lib/utils"
+import type { Product } from "@/lib/services/productService"
+import type { Supplier } from "@/lib/services/supplierService"
 
 interface EditProductModalProps {
   isOpen: boolean
@@ -18,6 +21,7 @@ interface EditProductModalProps {
   onPhotosChange: (files: File[]) => void
   onSubmit: () => void
   submitting: boolean
+  suppliers: Supplier[]
 }
 
 export function EditProductModal({
@@ -30,6 +34,7 @@ export function EditProductModal({
   onPhotosChange,
   onSubmit,
   submitting,
+  suppliers,
 }: EditProductModalProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -65,7 +70,7 @@ export function EditProductModal({
           </MButton>
           <MButton variant="primary" onClick={onSubmit} disabled={submitting}>
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-1 inline" />Menyimpan...</>
+              <MLoader inline size="sm" text="Menyimpan..." />
             ) : (
               "Simpan Perubahan"
             )}
@@ -73,7 +78,7 @@ export function EditProductModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Kolom Kiri — Foto */}
         <div>
           <label className="block text-sm font-medium text-[#0A0A0A] mb-2">Foto Produk</label>
@@ -121,7 +126,7 @@ export function EditProductModal({
               {product.images.map((img) => (
                 <img
                   key={img.id}
-                  src={img.url}
+                  src={getImageUrl(img.url)}
                   alt="foto produk"
                   className="w-14 h-14 object-cover rounded-md border"
                 />
@@ -178,15 +183,21 @@ export function EditProductModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">ID Supplier (opsional)</label>
-            <input
-              type="number"
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">
+              Supplier <span className="text-[#9CA3AF] font-normal">(opsional)</span>
+            </label>
+            <select
               value={formData.supplierId}
               onChange={(e) => onChange({ ...formData, supplierId: e.target.value })}
-              placeholder="ID supplier"
-              min={1}
-              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm focus:outline-none focus:border-[#0A0A0A]"
-            />
+              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white focus:outline-none focus:border-[#0A0A0A]"
+            >
+              <option value="">-- Pilih Supplier --</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nama}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Baris Variant */}

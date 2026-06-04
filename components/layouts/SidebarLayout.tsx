@@ -1,9 +1,10 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LogOut, LucideIcon } from "lucide-react"
+import { LogOut, LucideIcon, Menu, X } from "lucide-react"
 import { removeToken } from "@/lib/api"
 
 interface NavItem {
@@ -27,6 +28,12 @@ export function SidebarLayout({
 }: SidebarLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Tutup menu mobile ketika rute berubah
+  useEffect(() => {
+    setIsMobileMenuOpen(false)
+  }, [pathname])
 
   const handleLogout = () => {
     removeToken()
@@ -35,13 +42,46 @@ export function SidebarLayout({
 
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
+      {/* Mobile Top Bar */}
+      <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-[#E5E7EB] sticky top-0 z-30">
+        <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">
+          MANOLA
+        </span>
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="p-2 -mr-2 text-[#6B7280] hover:bg-gray-100 rounded-md transition-colors"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 w-60 h-full bg-white border-r border-[#E5E7EB] flex flex-col z-40">
+      <aside className={cn(
+        "fixed left-0 top-0 w-60 h-full bg-white border-r border-[#E5E7EB] flex flex-col z-50 transition-transform duration-300 ease-in-out lg:translate-x-0",
+        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-[#E5E7EB]">
-          <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">
+        <div className="px-6 py-5 border-b border-[#E5E7EB] flex items-center justify-between">
+          <span className="font-bold tracking-widest text-sm text-[#0A0A0A] hidden lg:block">
             MANOLA
           </span>
+          <span className="font-bold tracking-widest text-sm text-[#0A0A0A] lg:hidden">
+            MENU
+          </span>
+          <button 
+            className="lg:hidden p-1 text-[#6B7280] hover:text-[#0A0A0A] hover:bg-gray-100 rounded-md transition-colors"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* User block */}
@@ -103,7 +143,7 @@ export function SidebarLayout({
       </aside>
 
       {/* Main content */}
-      <main className="ml-60 min-h-screen p-8">
+      <main className="lg:ml-60 min-h-screen p-4 lg:p-8">
         {children}
       </main>
     </div>

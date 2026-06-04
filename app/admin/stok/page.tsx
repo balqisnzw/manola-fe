@@ -167,30 +167,30 @@ export default function AdminStokPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-[#0A0A0A]">Stok</h1>
         <MButton variant="primary" onClick={() => setShowAddModal(true)}>
-          + Input Restock
+          + Restock
         </MButton>
       </div>
 
       <MCard>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 gap-4">
           <h2 className="font-semibold text-[#0A0A0A]">Riwayat Restock</h2>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 border border-[#E5E7EB] rounded-md px-3 text-sm"
+                className="h-9 flex-1 sm:flex-none border border-[#E5E7EB] rounded-md px-2 text-sm"
               />
               <span className="text-[#6B7280]">—</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="h-9 border border-[#E5E7EB] rounded-md px-3 text-sm"
+                className="h-9 flex-1 sm:flex-none border border-[#E5E7EB] rounded-md px-2 text-sm"
               />
             </div>
-            <div className="w-64">
+            <div className="w-full sm:w-64">
               <MInput
                 placeholder="Cari produk..."
                 value={searchQuery}

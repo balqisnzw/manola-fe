@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 
 import { LogoutButton } from "@/components/auth/LogoutButton"
@@ -17,115 +17,124 @@ import {
   Globe,
   Store,
   Settings,
-  CheckCircle,
-} from "lucide-react"
+  CheckCircle } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
 import { toast } from "sonner"
+
+import { orderService, authService } from "@/lib/services"
+import type { Order, OrderItem } from "@/lib/services/orderService"
 
 const navItems = [
   { label: "Pesanan", href: "/packaging/pesanan" },
 ]
 
-interface OrderItem {
-  name: string
-  size: string
-  color: string
-  qty: number
-}
-
-interface Order {
-  id: string
-  customerName: string
-  city?: string
-  productSummary: string
-  timestamp: string
-  status: "Menunggu Dikemas"
-  items: OrderItem[]
-  address?: string
-  phone: string
-  type: "online" | "offline"
-}
-
-const initialOrders: Order[] = [
-  { id: "ORD-2024-0891", customerName: "Ahmad Rizky", city: "Jakarta Selatan", productSummary: "Kaos Hitam (M) ×2 · Celana (L) ×1", timestamp: "10 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Kaos Oversize Black", size: "M", color: "Hitam", qty: 2 }, { name: "Celana Cargo Olive", size: "L", color: "Olive", qty: 1 }], address: "Jl. Merdeka No. 45, Jakarta Selatan 12345", phone: "081234567890", type: "online" },
-  { id: "ORD-2024-0890", customerName: "Siti Nurhaliza", city: "Bandung", productSummary: "Hoodie (M) ×1 · Kaos (M) ×1", timestamp: "15 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Hoodie Essential Gray", size: "M", color: "Abu-abu", qty: 1 }, { name: "Kaos Graphic White", size: "M", color: "Putih", qty: 1 }], address: "Jl. Sudirman No. 88, Bandung 40115", phone: "082345678901", type: "online" },
-  { id: "ORD-2024-0889", customerName: "Dewi Lestari", city: "Surabaya", productSummary: "Jaket Bomber (L) ×1", timestamp: "25 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Jaket Bomber Navy", size: "L", color: "Navy", qty: 1 }], address: "Jl. Gatot Subroto No. 12, Surabaya 60123", phone: "084567890123", type: "online" },
-  { id: "ORD-2024-0888", customerName: "Eko Saputra", city: "Semarang", productSummary: "Kaos Polo (L) ×1 · Topi (Free) ×1", timestamp: "32 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Kaos Polo Navy", size: "L", color: "Navy", qty: 1 }, { name: "Topi Snapback Black", size: "-", color: "Hitam", qty: 1 }], address: "Jl. Diponegoro No. 56, Semarang 50132", phone: "085678901234", type: "online" },
-  { id: "ORD-2024-0887", customerName: "Fitri Handayani", city: "Yogyakarta", productSummary: "Celana Jogger (M) ×2", timestamp: "45 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Celana Jogger Black", size: "M", color: "Hitam", qty: 2 }], address: "Jl. Malioboro No. 78, Yogyakarta 55122", phone: "086789012345", type: "online" },
-  { id: "ORD-2024-0886", customerName: "Gunawan Wibowo", city: "Malang", productSummary: "Hoodie Zip (L) ×1 · Kaos (L) ×2", timestamp: "52 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Hoodie Zip Brown", size: "L", color: "Coklat", qty: 1 }, { name: "Kaos Basic White", size: "L", color: "Putih", qty: 2 }], address: "Jl. Ahmad Yani No. 34, Malang 65112", phone: "087890123456", type: "online" },
-  { id: "ORD-2024-0885", customerName: "Hana Pertiwi", city: "Solo", productSummary: "Jaket Denim (S) ×1", timestamp: "1 jam lalu", status: "Menunggu Dikemas", items: [{ name: "Jaket Denim Blue", size: "S", color: "Biru", qty: 1 }], address: "Jl. Pahlawan No. 90, Solo 57111", phone: "088901234567", type: "online" },
-  { id: "ORD-2024-0884", customerName: "Irfan Hakim", city: "Bekasi", productSummary: "Celana Chino (32) ×1 · Kaos (M) ×1", timestamp: "1 jam lalu", status: "Menunggu Dikemas", items: [{ name: "Celana Chino Beige", size: "32", color: "Beige", qty: 1 }, { name: "Kaos Oversize Black", size: "M", color: "Hitam", qty: 1 }], address: "Jl. Raya Bekasi No. 45, Bekasi 17111", phone: "089012345678", type: "online" },
-  // Offline orders
-  { id: "ORD-2024-0883", customerName: "Julia Putri", productSummary: "Kaos Basic (S) ×3", timestamp: "20 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Kaos Basic White", size: "S", color: "Putih", qty: 3 }], phone: "081122334455", type: "offline" },
-  { id: "ORD-2024-0882", customerName: "Kevin Pratama", productSummary: "Topi (Free) ×2", timestamp: "35 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Topi Snapback Black", size: "-", color: "Hitam", qty: 2 }], phone: "082233445566", type: "offline" },
-  { id: "ORD-2024-0881", customerName: "Linda Sari", productSummary: "Kaos Polo (M) ×1", timestamp: "50 menit lalu", status: "Menunggu Dikemas", items: [{ name: "Kaos Polo Navy", size: "M", color: "Navy", qty: 1 }], phone: "083344556677", type: "offline" },
-  { id: "ORD-2024-0880", customerName: "Mario Gunawan", productSummary: "Hoodie (L) ×1", timestamp: "1 jam lalu", status: "Menunggu Dikemas", items: [{ name: "Hoodie Essential Gray", size: "L", color: "Abu-abu", qty: 1 }], phone: "084455667788", type: "offline" },
-]
-
 export default function PackagingPesananPage() {
   const [activeTab, setActiveTab] = useState<"online" | "offline">("online")
-  const [orders, setOrders] = useState(initialOrders)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null)
   const [resiInput, setResiInput] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
-  const onlineOrders = orders.filter((o) => o.type === "online")
-  const offlineOrders = orders.filter((o) => o.type === "offline")
+  const user = authService.getCurrentUser()
+
+  useEffect(() => {
+    loadOrders()
+  }, [])
+
+  async function loadOrders() {
+    setLoading(true)
+    try {
+      const allOrders = await orderService.getAll()
+      // Only show orders that need packaging (DIPROSES or DIKEMAS)
+      const pending = allOrders.filter(
+        (o) => o.status === "DIPROSES" || o.status === "DIKEMAS"
+      )
+      setOrders(pending)
+    } catch (err) {
+      console.error("Failed to load orders:", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onlineOrders = orders.filter((o) => o.jenis === "ONLINE")
+  const offlineOrders = orders.filter((o) => o.jenis === "OFFLINE")
   const displayOrders = activeTab === "online" ? onlineOrders : offlineOrders
 
-  const handleComplete = (order: Order) => {
-    if (order.type === "online" && !resiInput.trim()) {
+  const handleComplete = async (order: Order) => {
+    if (order.jenis === "ONLINE" && !resiInput.trim()) {
       toast.error("Harap masukkan nomor resi pengiriman terlebih dahulu")
       return
     }
-    
-    setOrders(orders.filter((o) => o.id !== order.id))
-    setShowConfirmModal(false)
-    
-    if (order.type === "online") {
-      toast.success(`Pesanan berhasil dikirim dengan Resi: ${resiInput}`)
-    } else {
-      toast.success("Pesanan offline berhasil diselesaikan")
+
+    setSubmitting(true)
+    try {
+      const newStatus = order.jenis === "ONLINE" ? "DIKIRIM" : "SELESAI"
+      await orderService.updateStatus(order.id, newStatus)
+      setOrders(orders.filter((o) => o.id !== order.id))
+      setShowConfirmModal(false)
+
+      if (order.jenis === "ONLINE") {
+        toast.success(`Pesanan berhasil dikirim dengan Resi: ${resiInput}`)
+      } else {
+        toast.success("Pesanan offline berhasil diselesaikan")
+      }
+
+      setResiInput("")
+      setOrderToConfirm(null)
+      setSelectedOrder(null)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal memperbarui status"
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
     }
-    
-    setResiInput("")
-    setOrderToConfirm(null)
-    setSelectedOrder(null)
   }
 
   const rightContent = (
-  <div className="flex items-center gap-4">
-    <span className="text-sm text-[#6B7280]">
-      Lisa Permata
-    </span>
+    <div className="flex items-center gap-4">
+      <span className="text-sm text-[#6B7280]">{user?.nama ?? "Packaging"}</span>
 
-    <Link
-      href="/packaging/pengaturan"
-      className="text-[#6B7280] hover:text-[#0A0A0A]"
-    >
-      <Settings className="w-5 h-5" />
-    </Link>
+      <Link
+        href="/packaging/pengaturan"
+        className="text-[#6B7280] hover:text-[#0A0A0A]"
+      >
+        <Settings className="w-5 h-5" />
+      </Link>
 
-    <LogoutButton />
-  </div>
-)
+      <LogoutButton />
+    </div>
+  )
+
+  const getProductSummary = (order: Order) => {
+    if (!order.items || order.items.length === 0) return "-"
+    return order.items
+      .slice(0, 3)
+      .map((item) => `${item.variant?.product?.name ?? "?"} (${item.variant?.size}) ×${item.jumlah}`)
+      .join(" · ") + (order.items.length > 3 ? ` +${order.items.length - 3} lainnya` : "")
+  }
 
   const itemColumns = [
-    { key: "photo", label: "Foto", render: () => <div className="w-10 h-10 bg-gray-100 rounded-md" /> },
-    { key: "name", label: "Nama Produk", render: (item: OrderItem) => <span className="font-medium">{item.name}</span> },
-    { key: "size", label: "Ukuran", render: (item: OrderItem) => item.size || "-" },
-    { key: "color", label: "Warna", render: (item: OrderItem) => item.color || "-" },
-    { key: "qty", label: "Jumlah", render: (item: OrderItem) => item.qty },
+    {
+      key: "name",
+      label: "Nama Produk",
+      render: (item: OrderItem) => <span className="font-medium">{item.variant?.product?.name ?? "-"}</span> },
+    { key: "size", label: "Ukuran", render: (item: OrderItem) => item.variant?.size || "-" },
+    { key: "color", label: "Warna", render: (item: OrderItem) => item.variant?.color || "-" },
+    { key: "qty", label: "Jumlah", render: (item: OrderItem) => item.jumlah },
   ]
 
   return (
     <NavbarLayout navItems={navItems} rightContent={rightContent}>
-      <div className="p-8">
+      <div className="p-4 sm:p-8">
         <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Pesanan</h1>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <StatCard label="Harus Dikemas Hari Ini" value={orders.length.toString()} icon={Package} />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <StatCard label="Harus Dikemas" value={orders.length.toString()} icon={Package} />
           <StatCard label="Pesanan Online" value={onlineOrders.length.toString()} icon={Globe} />
           <StatCard label="Pesanan Offline" value={offlineOrders.length.toString()} icon={Store} />
         </div>
@@ -155,60 +164,70 @@ export default function PackagingPesananPage() {
         </div>
 
         {/* Order List */}
-        <div className="flex flex-col gap-3">
-          {displayOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-[#6B7280]">
-              <CheckCircle className="w-12 h-12 text-green-500 mb-3" />
-              <p>Semua pesanan sudah dikemas</p>
-            </div>
-          ) : (
-            displayOrders.map((order) => (
-              <div
-                key={order.id}
-                className="bg-white border border-[#E5E7EB] rounded-lg p-4"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm text-[#0A0A0A]">{order.id}</span>
-                  <span className="text-xs text-[#6B7280]">{order.timestamp}</span>
-                </div>
-                <p className="font-medium text-[#0A0A0A] mt-1">
-                  {order.customerName}
-                  {order.city && <span className="text-sm text-[#6B7280]"> · {order.city}</span>}
-                </p>
-                <p className="text-sm text-[#6B7280] mt-1 truncate">{order.productSummary}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <MBadge variant="warning">Menunggu Dikemas</MBadge>
-                  <div className="flex gap-2">
-                    <MButton
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      Lihat Detail
-                    </MButton>
-                    <MButton
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        setOrderToConfirm(order)
-                        setShowConfirmModal(true)
-                      }}
-                    >
-                      Selesai Dikemas
-                    </MButton>
+        {loading ? (
+          <MLoader />
+        ) : (
+          <div className="flex flex-col gap-3">
+            {displayOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-[#6B7280]">
+                <CheckCircle className="w-12 h-12 text-green-500 mb-3" />
+                <p>Semua pesanan sudah dikemas</p>
+              </div>
+            ) : (
+              displayOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="bg-white border border-[#E5E7EB] rounded-lg p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-sm text-[#0A0A0A]">#{order.id}</span>
+                    <span className="text-xs text-[#6B7280]">
+                      {new Date(order.createdAt).toLocaleString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <p className="font-medium text-[#0A0A0A] mt-1">
+                    {order.user?.nama ?? "Walk-in Customer"}
+                  </p>
+                  <p className="text-sm text-[#6B7280] mt-1 truncate">{getProductSummary(order)}</p>
+                  <div className="flex items-center justify-between mt-3">
+                    <MBadge variant="warning">{order.status === "DIKEMAS" ? "Sedang Dikemas" : "Menunggu Dikemas"}</MBadge>
+                    <div className="flex gap-2">
+                      <MButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        Lihat Detail
+                      </MButton>
+                      <MButton
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setOrderToConfirm(order)
+                          setShowConfirmModal(true)
+                        }}
+                      >
+                        Selesai Dikemas
+                      </MButton>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
       <MModal
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
-        title={selectedOrder?.id}
+        title={`Pesanan #${selectedOrder?.id ?? ""}`}
         maxWidth="lg"
         footer={
           <MButton
@@ -230,16 +249,18 @@ export default function PackagingPesananPage() {
           <div>
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-[#0A0A0A] mb-2">Informasi Pengiriman</h3>
-              <p className="font-medium">{selectedOrder.customerName}</p>
-              <p className="text-sm text-[#6B7280]">{selectedOrder.phone}</p>
-              {selectedOrder.address && (
-                <p className="text-sm text-[#6B7280] mt-1">{selectedOrder.address}</p>
+              <p className="font-medium">{selectedOrder.user?.nama ?? "Walk-in Customer"}</p>
+              {selectedOrder.alamat_pengiriman && (
+                <p className="text-sm text-[#6B7280] mt-1">{selectedOrder.alamat_pengiriman}</p>
+              )}
+              {selectedOrder.catatan && (
+                <p className="text-sm text-[#6B7280] mt-1">Catatan: {selectedOrder.catatan}</p>
               )}
             </div>
 
             <div>
               <h3 className="text-sm font-semibold text-[#0A0A0A] mb-2">Detail Produk</h3>
-              <MTable columns={itemColumns} data={selectedOrder.items} />
+              <MTable columns={itemColumns} data={selectedOrder.items ?? []} />
             </div>
           </div>
         )}
@@ -268,10 +289,16 @@ export default function PackagingPesananPage() {
             </MButton>
             <MButton
               variant="primary"
-              disabled={orderToConfirm?.type === "online" && !resiInput.trim()}
+              disabled={(orderToConfirm?.jenis === "ONLINE" && !resiInput.trim()) || submitting}
               onClick={() => orderToConfirm && handleComplete(orderToConfirm)}
             >
-              Konfirmasi
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <MLoader inline size="sm" text="Memproses..." />
+                </span>
+              ) : (
+                "Konfirmasi"
+              )}
             </MButton>
           </>
         }
@@ -280,16 +307,16 @@ export default function PackagingPesananPage() {
           <div className="text-center">
             <p className="font-semibold text-[#0A0A0A]">Konfirmasi Pengemasan</p>
             <p className="text-sm text-[#6B7280] mt-2">
-              Tandai pesanan <span className="font-mono">{orderToConfirm?.id}</span> sebagai selesai dikemas?
+              Tandai pesanan <span className="font-mono">#{orderToConfirm?.id}</span> sebagai selesai dikemas?
             </p>
             <p className="text-xs text-[#6B7280] mt-1">
-              {orderToConfirm?.type === "online" 
-                ? "Status akan berubah menjadi 'Dikirim'" 
+              {orderToConfirm?.jenis === "ONLINE"
+                ? "Status akan berubah menjadi 'Dikirim'"
                 : "Status akan berubah menjadi 'Selesai' (Offline)"}
             </p>
           </div>
 
-          {orderToConfirm?.type === "online" && (
+          {orderToConfirm?.jenis === "ONLINE" && (
             <div className="mt-4 text-left">
               <label className="block text-xs font-semibold text-[#0A0A0A] mb-1.5">
                 Nomor Resi Pengiriman *

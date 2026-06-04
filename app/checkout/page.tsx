@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CreditCard, Truck, MapPin } from "lucide-react";
+import { ArrowLeft, Check, CreditCard, Truck, MapPin } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader";
 import { MButton } from "@/components/manola/MButton";
 import { MInput } from "@/components/manola/MInput";
 import { useCart } from "@/lib/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
+import { orderService } from "@/lib/services/orderService";
 
 // Cart items are now provided by CartContext below
 
@@ -18,20 +20,12 @@ const shippingOptions = [
   { id: "sicepat", name: "SiCepat REG", price: 22000, eta: "2-4 hari" },
 ];
 
-const paymentMethods = [
-  { id: "transfer", name: "Transfer Bank", description: "BCA, Mandiri, BNI, BRI" },
-  { id: "ewallet", name: "E-Wallet", description: "GoPay, OVO, DANA, ShopeePay" },
-  { id: "cod", name: "Bayar di Tempat (COD)", description: "Cash on Delivery" },
-];
-
-// formatPrice is now imported from @/lib/utils
-
 export default function CheckoutPage() {
   const router = useRouter();
   const { items: cartItems, clearCart } = useCart();
   const [step, setStep] = useState(1);
   const [selectedShipping, setSelectedShipping] = useState(shippingOptions[0].id);
-  const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0].id);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -39,21 +33,46 @@ export default function CheckoutPage() {
     address: "",
     city: "",
     postalCode: "",
-    notes: "",
-  });
+    notes: "" });
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = shippingOptions.find((s) => s.id === selectedShipping)?.price || 0;
+  const shippingOption = shippingOptions.find((s) => s.id === selectedShipping);
+  const shipping = shippingOption?.price || 0;
   const total = subtotal + shipping;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = () => {
-    toast.success("Pesanan berhasil dibuat! Anda akan diarahkan ke halaman utama.");
-    clearCart();
-    setTimeout(() => router.push("/"), 1500);
+  const handleSubmit = async () => {
+    if (cartItems.length === 0) {
+      toast.error("Keranjang kosong");
+      return;
+    }
+    if (!formData.address || !formData.name) {
+      toast.error("Harap lengkapi data alamat pengiriman");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const fullAddress = `${formData.address}, ${formData.city} ${formData.postalCode}`.trim();
+      await orderService.create({
+        jenis: "ONLINE",
+        alamat_pengiriman: fullAddress,
+        ongkos_kirim: shipping,
+        catatan: formData.notes || undefined,
+        items: cartItems.map((item) => ({
+          variantId: item.variantId,
+          jumlah: item.quantity })) });
+      toast.success("Pesanan berhasil dibuat! Anda akan diarahkan ke halaman utama.");
+      clearCart();
+      setTimeout(() => router.push("/"), 1500);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal membuat pesanan";
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -75,7 +94,7 @@ export default function CheckoutPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Steps */}
         <div className="flex items-center justify-center mb-8">
-          {["Alamat", "Pengiriman", "Pembayaran"].map((label, idx) => (
+          {["Alamat", "Pengiriman"].map((label, idx) => (
             <div key={label} className="flex items-center">
               <div
                 className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
@@ -91,7 +110,7 @@ export default function CheckoutPage() {
               <span className={`ml-2 text-sm hidden sm:inline ${step === idx + 1 ? "font-semibold text-[var(--brand-black)]" : "text-[var(--brand-muted)]"}`}>
                 {label}
               </span>
-              {idx < 2 && <div className={`w-12 sm:w-24 h-px mx-4 ${step > idx + 1 ? "bg-[var(--brand-black)]" : "bg-[var(--brand-border)]"}`} />}
+              {idx < 1 && <div className={`w-12 sm:w-24 h-px mx-4 ${step > idx + 1 ? "bg-[var(--brand-black)]" : "bg-[var(--brand-border)]"}`} />}
             </div>
           ))}
         </div>
@@ -173,46 +192,14 @@ export default function CheckoutPage() {
                   <MButton variant="outline" className="flex-1" onClick={() => setStep(1)}>
                     Kembali
                   </MButton>
-                  <MButton className="flex-1" onClick={() => setStep(3)}>
-                    Lanjut ke Pembayaran
+                  <MButton className="flex-1" onClick={handleSubmit} disabled={submitting}>
+                    {submitting ? <MLoader inline size="sm" text="Memproses..." /> : "Buat Pesanan"}
                   </MButton>
                 </div>
               </div>
             )}
 
-            {/* Step 3: Payment */}
-            {step === 3 && (
-              <div className="bg-[var(--brand-white)] rounded-xl border border-[var(--brand-border)] p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <CreditCard className="w-5 h-5 text-[var(--brand-black)]" />
-                  <h2 className="text-lg font-semibold text-[var(--brand-black)]">Metode Pembayaran</h2>
-                </div>
-                <div className="space-y-3">
-                  {paymentMethods.map((method) => (
-                    <button
-                      key={method.id}
-                      onClick={() => setSelectedPayment(method.id)}
-                      className={`w-full p-4 rounded-lg border text-left transition-all ${
-                        selectedPayment === method.id
-                          ? "border-[var(--brand-black)] bg-[var(--brand-gray)]"
-                          : "border-[var(--brand-border)] hover:border-[var(--brand-black)]"
-                      }`}
-                    >
-                      <p className="font-semibold text-[var(--brand-black)]">{method.name}</p>
-                      <p className="text-sm text-[var(--brand-muted)]">{method.description}</p>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-4 mt-6">
-                  <MButton variant="outline" className="flex-1" onClick={() => setStep(2)}>
-                    Kembali
-                  </MButton>
-                  <MButton className="flex-1" onClick={handleSubmit}>
-                    Bayar Sekarang
-                  </MButton>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Order Summary */}
@@ -223,7 +210,7 @@ export default function CheckoutPage() {
                 {cartItems.map((item) => (
                   <div key={item.variantId} className="flex gap-3">
                     <div className="w-16 h-16 bg-[var(--brand-gray)] rounded-lg overflow-hidden flex-shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      <img src={item.image ? getImageUrl(item.image) : "/placeholder.svg"} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-[var(--brand-black)] text-sm line-clamp-1">{item.name}</p>

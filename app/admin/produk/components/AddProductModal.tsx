@@ -4,8 +4,10 @@ import { useRef } from "react"
 import { MModal } from "@/components/manola/MModal"
 import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
-import { Upload, X, Loader2 } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
+import { X, Upload } from "lucide-react"
 import { SIZES, type ProductFormState, type VariantRow } from "./types"
+import type { Supplier } from "@/lib/services/supplierService"
 
 interface AddProductModalProps {
   isOpen: boolean
@@ -16,6 +18,7 @@ interface AddProductModalProps {
   onPhotosChange: (files: File[]) => void
   onSubmit: () => void
   submitting: boolean
+  suppliers: Supplier[]
 }
 
 export function AddProductModal({
@@ -27,6 +30,7 @@ export function AddProductModal({
   onPhotosChange,
   onSubmit,
   submitting,
+  suppliers,
 }: AddProductModalProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -62,7 +66,7 @@ export function AddProductModal({
           </MButton>
           <MButton variant="primary" onClick={onSubmit} disabled={submitting}>
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-1 inline" />Menyimpan...</>
+              <MLoader inline size="sm" text="Menyimpan..." />
             ) : (
               "Simpan Produk"
             )}
@@ -70,7 +74,7 @@ export function AddProductModal({
         </>
       }
     >
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Kolom Kiri — Foto */}
         <div>
           <label className="block text-sm font-medium text-[#0A0A0A] mb-2">Foto Produk</label>
@@ -159,15 +163,21 @@ export function AddProductModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">ID Supplier (opsional)</label>
-            <input
-              type="number"
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">
+              Supplier <span className="text-[#9CA3AF] font-normal">(opsional)</span>
+            </label>
+            <select
               value={formData.supplierId}
               onChange={(e) => onChange({ ...formData, supplierId: e.target.value })}
-              placeholder="ID supplier"
-              min={1}
-              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm focus:outline-none focus:border-[#0A0A0A]"
-            />
+              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white focus:outline-none focus:border-[#0A0A0A]"
+            >
+              <option value="">-- Pilih Supplier --</option>
+              {suppliers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nama}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Baris Variant */}

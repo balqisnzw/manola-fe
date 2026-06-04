@@ -20,18 +20,20 @@ import {
   Pencil,
   Trash2,
   CheckCircle,
-  Loader2,
-  X,
 } from "lucide-react"
 import {
   productService,
   buildProductFormData,
   type Product,
 } from "@/lib/services/productService"
+import { supplierService, type Supplier } from "@/lib/services/supplierService"
 import { AddProductModal } from "./components/AddProductModal"
 import { EditProductModal } from "./components/EditProductModal"
 import { DeleteProductModal } from "./components/DeleteProductModal"
 import { DEFAULT_FORM, toVariantPayload, type ProductFormState } from "./components/types"
+import { getImageUrl } from "@/lib/utils"
+import { toast } from "sonner"
+import { MLoader } from "@/components/manola/MLoader"
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
@@ -55,26 +57,15 @@ function getTotalStock(product: Product): number {
   return product.variants.reduce((sum, v) => sum + v.stock, 0)
 }
 
-function Toast({ message, type }: { message: string; type: "success" | "error" }) {
-  return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white text-sm transition-all
-        ${type === "success" ? "bg-green-600" : "bg-red-600"}`}
-    >
-      {type === "success" ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
-      {message}
-    </div>
-  )
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminProdukPage() {
   // Data
   const [products, setProducts] = useState<Product[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
 
   // Filter
   const [searchQuery, setSearchQuery] = useState("")
@@ -101,6 +92,25 @@ export default function AdminProdukPage() {
 
   // ─── Load produk ────────────────────────────────────────────────────────────
 
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [productData, supplierData] = await Promise.all([
+        productService.getAll(),
+        supplierService.getAll(),
+      ])
+      setProducts(productData)
+      setSuppliers(supplierData)
+      const cats = Array.from(new Set(productData.map((p) => p.category).filter(Boolean) as string[]))
+      setCategoryList(cats)
+    } catch (err) {
+      console.error(err)
+      showToast("Gagal memuat data produk atau supplier", "error")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const loadProducts = async () => {
     try {
       setLoading(true)
@@ -117,15 +127,18 @@ export default function AdminProdukPage() {
   }
 
   useEffect(() => {
-    loadProducts()
+    loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ─── Toast ──────────────────────────────────────────────────────────────────
 
   const showToast = (message: string, type: "success" | "error") => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
+    if (type === "success") {
+      toast.success(message)
+    } else {
+      toast.error(message)
+    }
   }
 
   // ─── Filter ─────────────────────────────────────────────────────────────────
@@ -264,7 +277,7 @@ export default function AdminProdukPage() {
       render: (item: Product) => {
         const firstImg = item.images?.[0]?.url
         return firstImg ? (
-          <img src={firstImg} alt={item.name} className="w-12 h-12 object-cover rounded-md" />
+          <img src={getImageUrl(firstImg)} alt={item.name} className="w-12 h-12 object-cover rounded-md" />
         ) : (
           <div className="w-12 h-12 bg-gray-100 rounded-md" />
         )
@@ -329,13 +342,11 @@ export default function AdminProdukPage() {
 
   return (
     <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
-      {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} />}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-64">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="w-full sm:w-64">
             <MInput
               placeholder="Cari produk..."
               value={searchQuery}
@@ -351,7 +362,7 @@ export default function AdminProdukPage() {
             onChange={(e) => setFilterKategori(e.target.value)}
             placeholder="Filter kategori..."
             list="filter-kategori-list"
-            className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white w-44 focus:outline-none focus:border-[#0A0A0A]"
+            className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white w-full sm:w-44 focus:outline-none focus:border-[#0A0A0A]"
           />
           <datalist id="filter-kategori-list">
             {categoryList.map((cat) => (
@@ -362,7 +373,7 @@ export default function AdminProdukPage() {
           <select
             value={filterStok}
             onChange={(e) => setFilterStok(e.target.value)}
-            className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white"
+            className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white w-full sm:w-auto focus:outline-none focus:border-[#0A0A0A]"
           >
             <option value="">Semua Stok</option>
             <option value="aman">Aman</option>
@@ -370,12 +381,12 @@ export default function AdminProdukPage() {
           </select>
         </div>
 
-        <div className="flex gap-2">
-          <MButton variant="secondary" onClick={() => setShowKategoriModal(true)}>
-            Kelola Kategori
+        <div className="flex gap-2 w-full lg:w-auto">
+          <MButton variant="secondary" onClick={() => setShowKategoriModal(true)} className="flex-1 lg:flex-none">
+            Kategori
           </MButton>
-          <MButton variant="primary" onClick={openAddModal}>
-            + Tambah Produk
+          <MButton variant="primary" onClick={openAddModal} className="flex-1 lg:flex-none">
+            + Tambah
           </MButton>
         </div>
       </div>
@@ -383,10 +394,7 @@ export default function AdminProdukPage() {
       {/* Table */}
       <MCard padding="sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16 gap-2 text-[#6B7280]">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Memuat data produk...</span>
-          </div>
+          <MLoader text="Memuat data produk..." />
         ) : (
           <MTable columns={columns} data={filteredProducts} />
         )}
@@ -402,6 +410,7 @@ export default function AdminProdukPage() {
         onPhotosChange={setPhotos}
         onSubmit={handleAddProduct}
         submitting={submitting}
+        suppliers={suppliers}
       />
 
       {/* ── Modal Edit ────────────────────────────────────────────────────────── */}
@@ -415,6 +424,7 @@ export default function AdminProdukPage() {
         onPhotosChange={setPhotos}
         onSubmit={handleEditProduct}
         submitting={submitting}
+        suppliers={suppliers}
       />
 
       {/* ── Modal Hapus ───────────────────────────────────────────────────────── */}

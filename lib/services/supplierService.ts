@@ -33,12 +33,14 @@ export const supplierService = {
 
   /** POST /suppliers */
   async create(payload: CreateSupplierPayload): Promise<Supplier> {
-    return api.post<Supplier>("/suppliers", payload);
+    const res = await api.post<ApiResponse<Supplier>>("/suppliers", payload);
+    return res.data;
   },
 
   /** PUT /suppliers/:id */
   async update(id: number, payload: Partial<CreateSupplierPayload>): Promise<Supplier> {
-    return api.put<Supplier>(`/suppliers/${id}`, payload);
+    const res = await api.put<ApiResponse<Supplier>>(`/suppliers/${id}`, payload);
+    return res.data;
   },
 
   /** DELETE /suppliers/:id */

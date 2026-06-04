@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { MModal } from "@/components/manola/MModal"
 import { MButton } from "@/components/manola/MButton"
-import { Loader2 } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
 import type { RestockFormState } from "./types"
 import type { Product, ProductVariant } from "@/lib/services/productService"
 import type { Supplier } from "@/lib/services/supplierService"
@@ -27,8 +27,7 @@ export function AddRestockModal({
   products,
   suppliers,
   onSubmit,
-  submitting,
-}: AddRestockModalProps) {
+  submitting }: AddRestockModalProps) {
   const [variants, setVariants] = useState<ProductVariant[]>([])
 
   // Ketika produk dipilih, tampilkan variannya
@@ -55,7 +54,7 @@ export function AddRestockModal({
           </MButton>
           <MButton variant="primary" onClick={onSubmit} disabled={submitting}>
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-1 inline" />Menyimpan...</>
+              <MLoader inline size="sm" text="Menyimpan..." />
             ) : (
               "Simpan Restock"
             )}

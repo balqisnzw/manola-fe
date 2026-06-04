@@ -18,8 +18,6 @@ import {
   Pencil,
   Trash2,
   CheckCircle,
-  X,
-  Loader2,
 } from "lucide-react"
 import { supplierService, type Supplier } from "@/lib/services/supplierService"
 import { AddSupplierModal } from "./components/AddSupplierModal"
@@ -30,6 +28,8 @@ import {
   toSupplierPayload,
   type SupplierFormState,
 } from "./components/types"
+import { toast } from "sonner"
+import { MLoader } from "@/components/manola/MLoader"
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
@@ -43,19 +43,6 @@ const navItems = [
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
-
-function Toast({ message, type }: { message: string; type: "success" | "error" }) {
-  return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-white text-sm transition-all
-        ${type === "success" ? "bg-green-600" : "bg-red-600"}`}
-    >
-      {type === "success" ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
-      {message}
-    </div>
-  )
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -64,7 +51,6 @@ export default function AdminSupplierPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null)
 
   // Filter
   const [searchQuery, setSearchQuery] = useState("")
@@ -103,8 +89,11 @@ export default function AdminSupplierPage() {
   // ─── Toast ────────────────────────────────────────────────────────────────────
 
   const showToast = (message: string, type: "success" | "error") => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3500)
+    if (type === "success") {
+      toast.success(message)
+    } else {
+      toast.error(message)
+    }
   }
 
   // ─── Filter ───────────────────────────────────────────────────────────────────
@@ -255,12 +244,10 @@ export default function AdminSupplierPage() {
 
   return (
     <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
-      {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} />}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="w-64">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+        <div className="w-full sm:w-64">
           <MInput
             placeholder="Cari supplier..."
             value={searchQuery}
@@ -268,7 +255,7 @@ export default function AdminSupplierPage() {
             icon={<Search className="w-4 h-4" />}
           />
         </div>
-        <MButton variant="primary" onClick={openAddModal}>
+        <MButton variant="primary" onClick={openAddModal} className="w-full sm:w-auto">
           + Tambah Supplier
         </MButton>
       </div>
@@ -276,10 +263,7 @@ export default function AdminSupplierPage() {
       {/* Table */}
       <MCard padding="sm">
         {loading ? (
-          <div className="flex items-center justify-center py-16 gap-2 text-[#6B7280]">
-            <Loader2 className="w-5 h-5 animate-spin" />
-            <span>Memuat data supplier...</span>
-          </div>
+          <MLoader text="Memuat data supplier..." />
         ) : (
           <MTable columns={columns} data={filteredSuppliers} />
         )}

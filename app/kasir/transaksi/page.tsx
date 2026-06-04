@@ -1,7 +1,6 @@
 "use client"
 
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 
 import { LogoutButton } from "@/components/auth/LogoutButton"
@@ -18,35 +17,28 @@ import {
   X,
   ShoppingCart,
   CheckCircle,
-  Settings,
-} from "lucide-react"
+  Settings } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
 
+import { productService, orderService, authService } from "@/lib/services"
+import type { Product } from "@/lib/services/productService"
+import { getImageUrl } from "@/lib/utils"
+import { toast } from "sonner"
 
 const navItems = [
   { label: "Transaksi", href: "/kasir/transaksi" },
   { label: "Riwayat", href: "/kasir/riwayat" },
 ]
 
-const products = [
-  { id: 1, name: "Kaos Oversize Black", category: "Kaos", price: 200000, sizes: [{ size: "S", colors: [{ color: "Hitam", stock: 10 }] }, { size: "M", colors: [{ color: "Hitam", stock: 15 }] }, { size: "L", colors: [{ color: "Hitam", stock: 12 }] }, { size: "XL", colors: [{ color: "Hitam", stock: 8 }] }] },
-  { id: 2, name: "Hoodie Essential Gray", category: "Hoodie", price: 350000, sizes: [{ size: "S", colors: [{ color: "Abu-abu", stock: 5 }] }, { size: "M", colors: [{ color: "Abu-abu", stock: 8 }] }, { size: "L", colors: [{ color: "Abu-abu", stock: 10 }] }] },
-  { id: 3, name: "Celana Cargo Olive", category: "Celana", price: 250000, sizes: [{ size: "30", colors: [{ color: "Olive", stock: 6 }] }, { size: "32", colors: [{ color: "Olive", stock: 8 }] }, { size: "34", colors: [{ color: "Olive", stock: 4 }] }] },
-  { id: 4, name: "Jaket Bomber Navy", category: "Jaket", price: 450000, sizes: [{ size: "M", colors: [{ color: "Navy", stock: 5 }] }, { size: "L", colors: [{ color: "Navy", stock: 7 }] }, { size: "XL", colors: [{ color: "Navy", stock: 3 }] }] },
-  { id: 5, name: "Kaos Graphic White", category: "Kaos", price: 180000, sizes: [{ size: "S", colors: [{ color: "Putih", stock: 12 }] }, { size: "M", colors: [{ color: "Putih", stock: 18 }] }, { size: "L", colors: [{ color: "Putih", stock: 15 }] }] },
-  { id: 6, name: "Celana Jogger Black", category: "Celana", price: 220000, sizes: [{ size: "S", colors: [{ color: "Hitam", stock: 8 }] }, { size: "M", colors: [{ color: "Hitam", stock: 10 }] }, { size: "L", colors: [{ color: "Hitam", stock: 12 }] }] },
-  { id: 7, name: "Hoodie Zip Brown", category: "Hoodie", price: 380000, sizes: [{ size: "M", colors: [{ color: "Coklat", stock: 6 }] }, { size: "L", colors: [{ color: "Coklat", stock: 8 }] }, { size: "XL", colors: [{ color: "Coklat", stock: 4 }] }] },
-  { id: 8, name: "Kaos Polo Navy", category: "Kaos", price: 250000, sizes: [{ size: "S", colors: [{ color: "Navy", stock: 7 }] }, { size: "M", colors: [{ color: "Navy", stock: 10 }] }, { size: "L", colors: [{ color: "Navy", stock: 8 }] }] },
-  { id: 9, name: "Topi Snapback Black", category: "Aksesoris", price: 150000, sizes: [{ size: "-", colors: [{ color: "Hitam", stock: 20 }] }] },
-  { id: 10, name: "Celana Chino Beige", category: "Celana", price: 280000, sizes: [{ size: "30", colors: [{ color: "Beige", stock: 5 }] }, { size: "32", colors: [{ color: "Beige", stock: 7 }] }, { size: "34", colors: [{ color: "Beige", stock: 6 }] }] },
-]
-
 interface CartItem {
+  variantId: number
   productId: number
   name: string
   size: string
   color: string
   qty: number
   price: number
+  image: string
 }
 
 function formatRupiah(value: number) {
@@ -54,17 +46,40 @@ function formatRupiah(value: number) {
 }
 
 export default function KasirTransaksiPage() {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedProduct, setExpandedProduct] = useState<number | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "qris">("cash")
   const [cashAmount, setCashAmount] = useState("")
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [mobileView, setMobileView] = useState<"products" | "cart">("products")
 
   // Variant selection state
+  const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null)
   const [selectedSize, setSelectedSize] = useState("")
   const [selectedColor, setSelectedColor] = useState("")
   const [selectedQty, setSelectedQty] = useState(1)
+
+  const user = authService.getCurrentUser()
+
+  useEffect(() => {
+    loadProducts()
+  }, [])
+
+  async function loadProducts() {
+    setLoadingProducts(true)
+    try {
+      const data = await productService.getAll()
+      setProducts(data)
+    } catch (err) {
+      console.error("Failed to load products:", err)
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -75,39 +90,39 @@ export default function KasirTransaksiPage() {
 
   const handleExpandProduct = (productId: number) => {
     const product = products.find((p) => p.id === productId)
-    if (product && product.sizes.length > 0) {
+    if (product && product.variants.length > 0) {
       setExpandedProduct(productId)
-      setSelectedSize(product.sizes[0].size)
-      setSelectedColor(product.sizes[0].colors[0].color)
+      const firstVariant = product.variants[0]
+      setSelectedVariantId(firstVariant.id)
+      setSelectedSize(firstVariant.size)
+      setSelectedColor(firstVariant.color ?? "")
       setSelectedQty(1)
     }
   }
 
-  const handleAddToCart = (product: typeof products[0]) => {
-    const existingItem = cart.find(
-      (item) =>
-        item.productId === product.id &&
-        item.size === selectedSize &&
-        item.color === selectedColor
-    )
+  const handleAddToCart = (product: Product) => {
+    if (!selectedVariantId) return
+
+    const existingItem = cart.find((item) => item.variantId === selectedVariantId)
 
     if (existingItem) {
       setCart(
         cart.map((item) =>
-          item === existingItem ? { ...item, qty: item.qty + selectedQty } : item
+          item.variantId === selectedVariantId ? { ...item, qty: item.qty + selectedQty } : item
         )
       )
     } else {
       setCart([
         ...cart,
         {
+          variantId: selectedVariantId,
           productId: product.id,
           name: product.name,
           size: selectedSize,
           color: selectedColor,
           qty: selectedQty,
           price: product.price,
-        },
+          image: product.images?.[0]?.url ?? "" },
       ])
     }
     setExpandedProduct(null)
@@ -130,41 +145,87 @@ export default function KasirTransaksiPage() {
     setCashAmount("")
   }
 
-  const handleComplete = () => {
-    setShowSuccessModal(true)
+  const handleComplete = async () => {
+    if (cart.length === 0) return
+
+    setSubmitting(true)
+    try {
+      await orderService.create({
+        jenis: "OFFLINE",
+        metode_pembayaran: paymentMethod === "cash" ? "CASH" : "QRIS",
+        items: cart.map((item) => ({
+          variantId: item.variantId,
+          jumlah: item.qty })) })
+      setShowSuccessModal(true)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal menyelesaikan transaksi"
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleNewTransaction = () => {
     clearCart()
     setShowSuccessModal(false)
+    // Reload products to get updated stock
+    loadProducts()
   }
 
   const rightContent = (
-  <div className="flex items-center gap-4">
-    <span className="text-sm text-[#6B7280]">Maya Sari</span>
+    <div className="flex items-center gap-4">
+      <span className="text-sm text-[#6B7280]">{user?.nama ?? "Kasir"}</span>
 
-    <Link
-      href="/kasir/pengaturan"
-      className="text-[#6B7280] hover:text-[#0A0A0A]"
-    >
-      <Settings className="w-5 h-5" />
-    </Link>
+      <Link
+        href="/kasir/pengaturan"
+        className="text-[#6B7280] hover:text-[#0A0A0A]"
+      >
+        <Settings className="w-5 h-5" />
+      </Link>
 
-    <LogoutButton />
-  </div>
-)
+      <LogoutButton />
+    </div>
+  )
 
   return (
     <NavbarLayout navItems={navItems} rightContent={rightContent}>
-      {/* Summary Bar */}
-      <div className="bg-[#F9F9F9] border-b border-[#E5E7EB] px-8 py-2 text-sm text-[#6B7280]">
-        Hari ini: <span className="font-semibold text-[#0A0A0A]">8 transaksi</span> | Total Pendapatan: <span className="font-semibold text-[#0A0A0A]">Rp 3.240.000</span>
-      </div>
-
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-56px-44px)]">
-        {/* Left Panel - Products */}
-        <div className="flex-[3] border-r border-[#E5E7EB] overflow-hidden flex flex-col bg-white">
+      <div className="flex flex-col h-[calc(100vh-56px)]">
+        {/* Mobile Tabs */}
+        <div className="lg:hidden flex border-b border-[#E5E7EB] bg-white flex-shrink-0">
+          <button
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              mobileView === "products" 
+                ? "border-b-2 border-[#0A0A0A] text-[#0A0A0A]" 
+                : "text-[#6B7280] border-b-2 border-transparent"
+            }`}
+            onClick={() => setMobileView("products")}
+          >
+            Produk
+          </button>
+          <button
+            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+              mobileView === "cart" 
+                ? "border-b-2 border-[#0A0A0A] text-[#0A0A0A]" 
+                : "text-[#6B7280] border-b-2 border-transparent"
+            }`}
+            onClick={() => setMobileView("cart")}
+          >
+            Keranjang
+            {cart.length > 0 && (
+              <span className="bg-[#0A0A0A] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                {cart.reduce((sum, item) => sum + item.qty, 0)}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Desktop Split / Mobile Tab Content */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Panel - Products */}
+          <div className={`flex-[3] lg:border-r border-[#E5E7EB] overflow-hidden flex flex-col bg-white w-full ${
+            mobileView === "products" ? "flex" : "hidden lg:flex"
+          }`}>
           <div className="p-4 border-b border-[#E5E7EB]">
             <MInput
               placeholder="Cari nama produk..."
@@ -175,127 +236,107 @@ export default function KasirTransaksiPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="border-b border-[#E5E7EB] px-4 py-3">
-                <div className="flex items-center gap-3 cursor-pointer">
-                  <div className="w-12 h-12 bg-gray-100 rounded-md" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-[#0A0A0A]">{product.name}</p>
-                    <p className="text-xs text-[#6B7280]">{product.category}</p>
+            {loadingProducts ? (
+              <MLoader />
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-12 text-[#6B7280]">
+                <p className="text-sm">Tidak ada produk ditemukan</p>
+              </div>
+            ) : (
+              filteredProducts.map((product) => (
+                <div key={product.id} className="border-b border-[#E5E7EB] px-4 py-3">
+                  <div className="flex items-center gap-3 cursor-pointer">
+                    <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                      <img
+                        src={getImageUrl(product.images?.[0]?.url)}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[#0A0A0A]">{product.name}</p>
+                      <p className="text-xs text-[#6B7280]">{product.category ?? "-"}</p>
+                    </div>
+                    <p className="text-sm font-semibold">{formatRupiah(product.price)}</p>
+                    <MButton
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        expandedProduct === product.id
+                          ? setExpandedProduct(null)
+                          : handleExpandProduct(product.id)
+                      }
+                    >
+                      <Plus className="w-4 h-4" />
+                    </MButton>
                   </div>
-                  <p className="text-sm font-semibold">{formatRupiah(product.price)}</p>
-                  <MButton
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      expandedProduct === product.id
-                        ? setExpandedProduct(null)
-                        : handleExpandProduct(product.id)
-                    }
-                  >
-                    <Plus className="w-4 h-4" />
-                  </MButton>
-                </div>
 
-                {/* Variant Selector */}
-                {expandedProduct === product.id && (
-                  <div className="bg-[#F9F9F9] rounded-lg p-3 mt-2">
-                    <div className="mb-3">
-                      <span className="text-xs text-[#6B7280]">Pilih Ukuran:</span>
-                      <div className="flex gap-2 mt-1">
-                        {product.sizes.map((s) => (
-                          <button
-                            key={s.size}
-                            onClick={() => {
-                              setSelectedSize(s.size)
-                              setSelectedColor(s.colors[0].color)
-                            }}
-                            className={`border rounded px-3 py-1 text-xs transition ${
-                              selectedSize === s.size
-                                ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
-                                : "border-[#E5E7EB] hover:border-[#0A0A0A]"
-                            }`}
-                          >
-                            {s.size}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="mb-3">
-                      <span className="text-xs text-[#6B7280]">Pilih Warna:</span>
-                      <div className="flex gap-2 mt-1">
-                        {product.sizes
-                          .find((s) => s.size === selectedSize)
-                          ?.colors.map((c) => (
+                  {/* Variant Selector */}
+                  {expandedProduct === product.id && (
+                    <div className="bg-[#F9F9F9] rounded-lg p-3 mt-2">
+                      {/* Size selection */}
+                      <div className="mb-3">
+                        <span className="text-xs text-[#6B7280]">Pilih Varian:</span>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {product.variants.map((v) => (
                             <button
-                              key={c.color}
-                              onClick={() => setSelectedColor(c.color)}
-                              className={`w-6 h-6 rounded-full border-2 ${
-                                selectedColor === c.color
-                                  ? "ring-2 ring-[#0A0A0A] ring-offset-1"
-                                  : ""
-                              }`}
-                              style={{
-                                backgroundColor:
-                                  c.color === "Hitam"
-                                    ? "#1a1a1a"
-                                    : c.color === "Abu-abu"
-                                    ? "#9CA3AF"
-                                    : c.color === "Olive"
-                                    ? "#6B8E23"
-                                    : c.color === "Navy"
-                                    ? "#1e3a5f"
-                                    : c.color === "Putih"
-                                    ? "#ffffff"
-                                    : c.color === "Coklat"
-                                    ? "#8B4513"
-                                    : c.color === "Beige"
-                                    ? "#F5F5DC"
-                                    : "#ccc",
+                              key={v.id}
+                              onClick={() => {
+                                setSelectedVariantId(v.id)
+                                setSelectedSize(v.size)
+                                setSelectedColor(v.color ?? "")
                               }}
-                              title={c.color}
-                            />
+                              className={`border rounded px-3 py-1 text-xs transition ${
+                                selectedVariantId === v.id
+                                  ? "bg-[#0A0A0A] text-white border-[#0A0A0A]"
+                                  : "border-[#E5E7EB] hover:border-[#0A0A0A]"
+                              }`}
+                            >
+                              {v.size}{v.color ? ` · ${v.color}` : ""} ({v.stock})
+                            </button>
                           ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-[#6B7280]">Jumlah:</span>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setSelectedQty(Math.max(1, selectedQty - 1))}
-                            className="p-1 text-[#6B7280] hover:text-[#0A0A0A]"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="w-8 text-center text-sm">{selectedQty}</span>
-                          <button
-                            onClick={() => setSelectedQty(Math.min(99, selectedQty + 1))}
-                            className="p-1 text-[#6B7280] hover:text-[#0A0A0A]"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
-                      <MButton
-                        variant="primary"
-                        size="sm"
-                        onClick={() => handleAddToCart(product)}
-                      >
-                        Tambah ke Transaksi
-                      </MButton>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-[#6B7280]">Jumlah:</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setSelectedQty(Math.max(1, selectedQty - 1))}
+                              className="p-1 text-[#6B7280] hover:text-[#0A0A0A]"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="w-8 text-center text-sm">{selectedQty}</span>
+                            <button
+                              onClick={() => setSelectedQty(Math.min(99, selectedQty + 1))}
+                              className="p-1 text-[#6B7280] hover:text-[#0A0A0A]"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <MButton
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleAddToCart(product)}
+                        >
+                          Tambah ke Transaksi
+                        </MButton>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Right Panel - Cart */}
-        <div className="flex-[2] overflow-hidden flex flex-col bg-white">
+        <div className={`flex-[2] overflow-hidden flex flex-col bg-white w-full ${
+          mobileView === "cart" ? "flex" : "hidden lg:flex"
+        }`}>
           <div className="flex items-center justify-between p-4 border-b border-[#E5E7EB]">
             <h2 className="font-semibold text-[#0A0A0A]">Transaksi Baru</h2>
             <MButton variant="ghost" size="sm" onClick={clearCart} className="text-[#6B7280]">
@@ -317,7 +358,7 @@ export default function KasirTransaksiPage() {
                     <div className="flex-1">
                       <p className="text-sm font-medium">{item.name}</p>
                       <p className="text-xs text-[#6B7280]">
-                        {item.size} · {item.color}
+                        {item.size}{item.color ? ` · ${item.color}` : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-1">
@@ -415,11 +456,18 @@ export default function KasirTransaksiPage() {
               fullWidth
               size="lg"
               onClick={handleComplete}
-              disabled={cart.length === 0}
+              disabled={cart.length === 0 || submitting}
             >
-              Selesaikan Transaksi
+              {submitting ? (
+                <span className="flex items-center gap-2 justify-center">
+                  <MLoader inline size="sm" text="Memproses..." />
+                </span>
+              ) : (
+                "Selesaikan Transaksi"
+              )}
             </MButton>
           </div>
+        </div>
         </div>
       </div>
 

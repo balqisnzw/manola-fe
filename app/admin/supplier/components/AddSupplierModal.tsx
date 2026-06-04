@@ -3,7 +3,7 @@
 import { MModal } from "@/components/manola/MModal"
 import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
-import { Loader2 } from "lucide-react"
+import { MLoader } from "@/components/manola/MLoader"
 import type { SupplierFormState } from "./types"
 
 interface AddSupplierModalProps {
@@ -21,8 +21,7 @@ export function AddSupplierModal({
   formData,
   onChange,
   onSubmit,
-  submitting,
-}: AddSupplierModalProps) {
+  submitting }: AddSupplierModalProps) {
   return (
     <MModal
       isOpen={isOpen}
@@ -36,7 +35,7 @@ export function AddSupplierModal({
           </MButton>
           <MButton variant="primary" onClick={onSubmit} disabled={submitting}>
             {submitting ? (
-              <><Loader2 className="w-4 h-4 animate-spin mr-1 inline" />Menyimpan...</>
+              <MLoader inline size="sm" text="Menyimpan..." />
             ) : (
               "Simpan Supplier"
             )}

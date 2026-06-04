@@ -2,34 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ShoppingCart, User, Menu, X, Star } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, X, Star, Loader2 } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
-import { MInput } from "@/components/manola/MInput";
 import { MBadge } from "@/components/manola/MBadge";
 import { authService, type User as AuthUser } from "@/lib/services/authService";
+import { productService, type Product } from "@/lib/services/productService";
 import { useCart } from "@/lib/CartContext";
-import { formatPrice } from "@/lib/utils";
-
-const categories = [
-  { id: "tshirt", name: "T-Shirt", count: 24 },
-  { id: "hoodie", name: "Hoodie", count: 18 },
-  { id: "jacket", name: "Jacket", count: 12 },
-  { id: "pants", name: "Pants", count: 15 },
-  { id: "accessories", name: "Accessories", count: 30 },
-];
-
-const products = [
-  { id: 1, name: "Urban Shadow Tee", price: 299000, originalPrice: 399000, image: "/placeholder.svg", category: "T-Shirt", rating: 4.8, reviews: 124, isNew: true },
-  { id: 2, name: "Street Phantom Hoodie", price: 549000, originalPrice: null, image: "/placeholder.svg", category: "Hoodie", rating: 4.9, reviews: 89, isNew: false },
-  { id: 3, name: "Midnight Cargo Pants", price: 459000, originalPrice: 559000, image: "/placeholder.svg", category: "Pants", rating: 4.7, reviews: 56, isNew: false },
-  { id: 4, name: "Neo Tokyo Jacket", price: 899000, originalPrice: null, image: "/placeholder.svg", category: "Jacket", rating: 4.9, reviews: 201, isNew: true },
-  { id: 5, name: "Rebel Classic Tee", price: 279000, originalPrice: null, image: "/placeholder.svg", category: "T-Shirt", rating: 4.6, reviews: 78, isNew: false },
-  { id: 6, name: "Dark Matter Hoodie", price: 599000, originalPrice: 699000, image: "/placeholder.svg", category: "Hoodie", rating: 4.8, reviews: 145, isNew: false },
-  { id: 7, name: "Stealth Cap", price: 189000, originalPrice: null, image: "/placeholder.svg", category: "Accessories", rating: 4.5, reviews: 67, isNew: true },
-  { id: 8, name: "Urban Warrior Jacket", price: 799000, originalPrice: 899000, image: "/placeholder.svg", category: "Jacket", rating: 4.7, reviews: 92, isNew: false },
-];
-
-// formatPrice is now imported from @/lib/utils
+import { formatPrice, getImageUrl } from "@/lib/utils";
+import { ProductCardSkeleton } from "@/components/manola/Skeleton";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -37,6 +17,10 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { cartCount } = useCart();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  // Real data from API
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     try {
@@ -46,9 +30,35 @@ export default function HomePage() {
     }
   }, []);
 
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const data = await productService.getAll();
+        setProducts(data);
+      } catch (err) {
+        console.error("Error fetching products:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProducts();
+  }, []);
+
+  // Derive categories from real products
+  const categories = Array.from(
+    new Set(products.map((p) => p.category).filter(Boolean) as string[])
+  ).map((cat) => ({
+    id: cat.toLowerCase().replace(/\s+/g, ""),
+    name: cat,
+    count: products.filter((p) => p.category === cat).length,
+  }));
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = !selectedCategory || product.category.toLowerCase().replace("-", "") === selectedCategory;
+    const matchesCategory =
+      !selectedCategory ||
+      product.category?.toLowerCase().replace(/\s+/g, "") === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -108,8 +118,8 @@ export default function HomePage() {
                     ? {
                         OWNER: "/owner/dashboard",
                         ADMIN: "/admin/dashboard",
-                        KASIR: "/kasir/dashboard",
-                        PACKAGING: "/packaging/dashboard",
+                        KASIR: "/kasir/transaksi",
+                        PACKAGING: "/packaging/pesanan",
                         USER: "/profil",
                       }[currentUser.role] || "/profil"
                     : "/login"
@@ -167,7 +177,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative bg-[var(--brand-black)] text-[var(--brand-white)] overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="max-w-2xl">
+          <div className="max-2xl">
             <MBadge variant="outline" className="mb-4 border-[var(--brand-white)] text-[var(--brand-white)]">
               New Collection 2026
             </MBadge>
@@ -181,9 +191,10 @@ export default function HomePage() {
               <MButton size="lg" className="bg-[var(--brand-white)] text-[var(--brand-black)] hover:bg-gray-100">
                 Lihat Koleksi
               </MButton>
-              <MButton variant="outline" size="lg" className="border-[var(--brand-white)] text-[var(--brand-white)] hover:bg-[var(--brand-white)] hover:text-[var(--brand-black)]">
+              <MButton variant="outline" size="lg" className="bg-transparent border-[var(--brand-white)] text-[var(--brand-white)] hover:bg-[var(--brand-white)] hover:text-[var(--brand-black)]">
                 Tentang Kami
               </MButton>
+
             </div>
           </div>
         </div>
@@ -191,37 +202,39 @@ export default function HomePage() {
       </section>
 
       {/* Categories */}
-      <section className="py-12 bg-[var(--brand-white)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-[var(--brand-black)]">Kategori</h2>
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className="text-sm text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors"
-            >
-              Lihat Semua
-            </button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {categories.map((cat) => (
+      {categories.length > 0 && (
+        <section className="py-12 bg-[var(--brand-white)]">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-[var(--brand-black)]">Kategori</h2>
               <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                className={`p-6 rounded-xl border transition-all text-center ${
-                  selectedCategory === cat.id
-                    ? "border-[var(--brand-black)] bg-[var(--brand-black)] text-[var(--brand-white)]"
-                    : "border-[var(--brand-border)] bg-[var(--brand-white)] hover:border-[var(--brand-black)]"
-                }`}
+                onClick={() => setSelectedCategory(null)}
+                className="text-sm text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors"
               >
-                <p className="font-semibold">{cat.name}</p>
-                <p className={`text-sm mt-1 ${selectedCategory === cat.id ? "text-gray-300" : "text-[var(--brand-muted)]"}`}>
-                  {cat.count} produk
-                </p>
+                Lihat Semua
               </button>
-            ))}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+                  className={`p-6 rounded-xl border transition-all text-center ${
+                    selectedCategory === cat.id
+                      ? "border-[var(--brand-black)] bg-[var(--brand-black)] text-[var(--brand-white)]"
+                      : "border-[var(--brand-border)] bg-[var(--brand-white)] hover:border-[var(--brand-black)]"
+                  }`}
+                >
+                  <p className="font-semibold">{cat.name}</p>
+                  <p className={`text-sm mt-1 ${selectedCategory === cat.id ? "text-gray-300" : "text-[var(--brand-muted)]"}`}>
+                    {cat.count} produk
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Products Grid */}
       <section className="py-12">
@@ -230,53 +243,58 @@ export default function HomePage() {
             <h2 className="text-2xl font-bold text-[var(--brand-black)]">
               {selectedCategory ? categories.find((c) => c.id === selectedCategory)?.name : "Produk Terbaru"}
             </h2>
-            <p className="text-sm text-[var(--brand-muted)]">{filteredProducts.length} produk</p>
+            {!loading && <p className="text-sm text-[var(--brand-muted)]">{filteredProducts.length} produk</p>}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => (
-              <Link
-                key={product.id}
-                href={`/produk/${product.id}`}
-                className="group bg-[var(--brand-white)] rounded-xl overflow-hidden border border-[var(--brand-border)] hover:shadow-lg transition-all"
-              >
-                <div className="aspect-square bg-[var(--brand-gray)] relative overflow-hidden">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {product.isNew && (
-                    <MBadge className="absolute top-3 left-3 bg-[var(--brand-black)] text-[var(--brand-white)]">
-                      NEW
-                    </MBadge>
-                  )}
-                  {product.originalPrice && (
-                    <MBadge variant="destructive" className="absolute top-3 right-3">
-                      {Math.round((1 - product.price / product.originalPrice) * 100)}%
-                    </MBadge>
-                  )}
-                </div>
-                <div className="p-4">
-                  <p className="text-xs text-[var(--brand-muted)] mb-1">{product.category}</p>
-                  <h3 className="font-semibold text-[var(--brand-black)] mb-2 line-clamp-1">{product.name}</h3>
-                  <div className="flex items-center gap-1 mb-2">
-                    <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs font-medium">{product.rating}</span>
-                    <span className="text-xs text-[var(--brand-muted)]">({product.reviews})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[var(--brand-black)]">{formatPrice(product.price)}</span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-[var(--brand-muted)] line-through">{formatPrice(product.originalPrice)}</span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <ProductCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {filteredProducts.map((product) => {
+                const firstImage = product.images?.[0]?.url;
+                const totalStock = product.variants?.reduce((sum, v) => sum + v.stock, 0) ?? 0;
+                return (
+                  <Link
+                    key={product.id}
+                    href={`/produk/${product.id}`}
+                    className="group bg-[var(--brand-white)] rounded-xl overflow-hidden border border-[var(--brand-border)] hover:shadow-lg transition-all"
+                  >
+                    <div className="aspect-square bg-[var(--brand-gray)] relative overflow-hidden">
+                      {firstImage ? (
+                        <img
+                          src={getImageUrl(firstImage)}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-[var(--brand-muted)] text-sm">
+                          No Image
+                        </div>
+                      )}
+                      {totalStock <= 0 && (
+                        <MBadge variant="destructive" className="absolute top-3 left-3">
+                          Habis
+                        </MBadge>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="text-xs text-[var(--brand-muted)] mb-1">{product.category ?? "-"}</p>
+                      <h3 className="font-semibold text-[var(--brand-black)] mb-2 line-clamp-1">{product.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[var(--brand-black)]">{formatPrice(product.price)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
 
-          {filteredProducts.length === 0 && (
+          {!loading && filteredProducts.length === 0 && (
             <div className="text-center py-16">
               <p className="text-[var(--brand-muted)]">Tidak ada produk ditemukan</p>
               <MButton variant="outline" className="mt-4" onClick={() => { setSearchQuery(""); setSelectedCategory(null); }}>
