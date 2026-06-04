@@ -84,6 +84,19 @@ export const authService = {
     deleteCookie("manola_user");
   },
 
+  /** Update profile (Mock/Real depending on backend) */
+  async updateProfile(payload: { nama?: string; email?: string }): Promise<User> {
+    const res = await api.put<User>("/auth/profile", payload);
+    setStoredUser(res);
+    setCookie("manola_user", JSON.stringify(res));
+    return res;
+  },
+
+  /** Change password */
+  async changePassword(oldPassword: string, newPassword: string): Promise<{ message: string }> {
+    return api.post("/auth/change-password", { oldPassword, newPassword });
+  },
+
   /** Get currently logged-in user from localStorage */
   getCurrentUser(): User | null {
     return getStoredUser<User>();

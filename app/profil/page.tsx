@@ -41,6 +41,15 @@ export default function ProfilePage() {
 
   const user = authService.getCurrentUser();
 
+  const [formData, setFormData] = useState({
+    nama: user?.nama || "",
+    email: user?.email || "",
+    passwordLama: "",
+    passwordBaru: "",
+    konfirmasiPassword: "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
   useEffect(() => {
     if (!user) {
       router.push("/login");
@@ -71,6 +80,38 @@ export default function ProfilePage() {
       setWishlists((prev) => prev.filter((w) => w.id !== wishlistId));
     } catch (err) {
       console.error("Failed to remove wishlist item:", err);
+    }
+  }
+
+  async function handleSaveSettings() {
+    setIsSaving(true);
+    try {
+      let updated = false;
+      if (formData.nama !== user?.nama || formData.email !== user?.email) {
+        await authService.updateProfile({ nama: formData.nama, email: formData.email });
+        updated = true;
+      }
+      if (formData.passwordLama && formData.passwordBaru) {
+        if (formData.passwordBaru !== formData.konfirmasiPassword) {
+          alert("Konfirmasi password baru tidak cocok.");
+          setIsSaving(false);
+          return;
+        }
+        await authService.changePassword(formData.passwordLama, formData.passwordBaru);
+        setFormData(prev => ({ ...prev, passwordLama: "", passwordBaru: "", konfirmasiPassword: "" }));
+        alert("Password berhasil diubah.");
+        updated = true;
+      } else if (updated) {
+        alert("Profil berhasil diperbarui.");
+      }
+      
+      if (updated) {
+        window.location.reload();
+      }
+    } catch (err: any) {
+      alert("Gagal menyimpan perubahan: " + (err.message || "Terjadi kesalahan"));
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -253,23 +294,69 @@ export default function ProfilePage() {
                   <div className="space-y-4">
                     <h1 className="text-2xl font-bold text-[var(--brand-black)]">Pengaturan Akun</h1>
                     <div className="bg-[var(--brand-white)] rounded-xl border border-[var(--brand-border)] p-6 space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Nama Lengkap</label>
-                        <input
-                          type="text"
-                          defaultValue={user.nama}
-                          className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
-                        />
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold border-b border-[var(--brand-border)] pb-2">Informasi Profil</h3>
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Nama Lengkap</label>
+                          <input
+                            type="text"
+                            value={formData.nama}
+                            onChange={(e) => setFormData({ ...formData, nama: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Email</label>
+                          <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Email</label>
-                        <input
-                          type="email"
-                          defaultValue={user.email}
-                          className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
-                        />
+
+                      <div className="space-y-4 pt-4">
+                        <h3 className="text-lg font-semibold border-b border-[var(--brand-border)] pb-2">Ubah Kata Sandi</h3>
+                        <div>
+                          <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Kata Sandi Saat Ini</label>
+                          <input
+                            type="password"
+                            placeholder="Biarkan kosong jika tidak ingin mengubah"
+                            value={formData.passwordLama}
+                            onChange={(e) => setFormData({ ...formData, passwordLama: e.target.value })}
+                            className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                          />
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Kata Sandi Baru</label>
+                            <input
+                              type="password"
+                              placeholder="Minimal 6 karakter"
+                              value={formData.passwordBaru}
+                              onChange={(e) => setFormData({ ...formData, passwordBaru: e.target.value })}
+                              className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-[var(--brand-black)] mb-1.5">Konfirmasi Kata Sandi Baru</label>
+                            <input
+                              type="password"
+                              placeholder="Ketik ulang kata sandi baru"
+                              value={formData.konfirmasiPassword}
+                              onChange={(e) => setFormData({ ...formData, konfirmasiPassword: e.target.value })}
+                              className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <MButton>Simpan Perubahan</MButton>
+                      
+                      <div className="pt-2">
+                        <MButton onClick={handleSaveSettings} disabled={isSaving}>
+                          {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                        </MButton>
+                      </div>
                     </div>
                   </div>
                 )}

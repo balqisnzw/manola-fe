@@ -73,20 +73,7 @@ export default function HomePage() {
               <span className="text-2xl font-bold text-[var(--brand-black)]">MANOLA</span>
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-8">
-              {categories.slice(0, 4).map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                  className={`text-sm font-medium transition-colors ${
-                    selectedCategory === cat.id ? "text-[var(--brand-black)]" : "text-[var(--brand-muted)] hover:text-[var(--brand-black)]"
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </nav>
+
 
             {/* Search & Actions */}
             <div className="flex items-center gap-4">
@@ -153,22 +140,7 @@ export default function HomePage() {
                   className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--brand-gray)] border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
                 />
               </div>
-              <nav className="flex flex-col gap-2">
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => {
-                      setSelectedCategory(selectedCategory === cat.id ? null : cat.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      selectedCategory === cat.id ? "bg-[var(--brand-black)] text-[var(--brand-white)]" : "hover:bg-[var(--brand-gray)]"
-                    }`}
-                  >
-                    {cat.name} ({cat.count})
-                  </button>
-                ))}
-              </nav>
+
             </div>
           </div>
         )}
@@ -188,9 +160,6 @@ export default function HomePage() {
               Koleksi streetwear lokal yang menggabungkan kenyamanan, gaya, dan identitas Indonesia untuk setiap momen.
             </p>
             <div className="flex flex-wrap gap-4">
-              <MButton size="lg" className="bg-[var(--brand-white)] text-[var(--brand-black)] hover:bg-gray-100">
-                Lihat Koleksi
-              </MButton>
               <MButton variant="outline" size="lg" className="bg-transparent border-[var(--brand-white)] text-[var(--brand-white)] hover:bg-[var(--brand-white)] hover:text-[var(--brand-black)]">
                 Tentang Kami
               </MButton>
