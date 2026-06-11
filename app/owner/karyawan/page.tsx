@@ -8,7 +8,7 @@ import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
 import { MModal } from "@/components/manola/MModal"
 import { MBadge } from "@/components/manola/MBadge"
-import { LayoutDashboard, Users, UserCog, Settings } from "lucide-react"
+import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Sliders } from "lucide-react"
 import { MLoader } from "@/components/manola/MLoader"
 import { employeeService, authService } from "@/lib/services"
 import type { User } from "@/lib/services/authService"
@@ -17,9 +17,12 @@ import { toast } from "sonner"
 
 const navItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+  { label: "Stok Barang", href: "/owner/produk", icon: Package },
+  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
   { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
   { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Pengaturan", href: "/owner/pengaturan", icon: Settings },
+  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
+  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
 ]
 
 export default function OwnerKaryawanPage() {

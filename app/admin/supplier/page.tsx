@@ -18,6 +18,10 @@ import {
   Pencil,
   Trash2,
   CheckCircle,
+  FolderTree,
+  Tag,
+  Image,
+  FileText,
 } from "lucide-react"
 import { supplierService, type Supplier } from "@/lib/services/supplierService"
 import { AddSupplierModal } from "./components/AddSupplierModal"
@@ -36,9 +40,13 @@ import { MLoader } from "@/components/manola/MLoader"
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
+  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
   { label: "Stok", href: "/admin/stok", icon: Archive },
   { label: "Supplier", href: "/admin/supplier", icon: Truck },
   { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
+  { label: "Promo", href: "/admin/promo", icon: Tag },
+  { label: "Banner", href: "/admin/banner", icon: Image },
+  { label: "Laporan", href: "/admin/laporan", icon: FileText },
   { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]

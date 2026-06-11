@@ -12,6 +12,7 @@ import { reviewService, type Review } from "@/lib/services/miscServices";
 import { useCart } from "@/lib/CartContext";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
+import { NotificationBell } from "@/components/manola/NotificationBell";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -27,6 +28,12 @@ export default function ProductDetailPage() {
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+
+  // Size Calculator state
+  const [showSizeCalc, setShowSizeCalc] = useState(false);
+  const [sizeCalcBB, setSizeCalcBB] = useState("");
+  const [sizeCalcTB, setSizeCalcTB] = useState("");
+  const [sizeResult, setSizeResult] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -134,12 +141,15 @@ export default function ProductDetailPage() {
             </button>
             <Link href="/" className="text-2xl font-bold text-[var(--brand-black)]">MANOLA</Link>
             {currentUser?.role === "USER" && (
-              <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
-                <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">{cartCount}</span>
-                )}
-              </Link>
+              <div className="flex items-center gap-4">
+                <NotificationBell />
+                <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
+                  <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">{cartCount}</span>
+                  )}
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -204,7 +214,15 @@ export default function ProductDetailPage() {
             {/* Size Selection */}
             {sizes.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-[var(--brand-black)] mb-3">Ukuran</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <p className="text-sm font-medium text-[var(--brand-black)]">Ukuran</p>
+                  <button
+                    onClick={() => { setShowSizeCalc(true); setSizeResult(null); setSizeCalcBB(""); setSizeCalcTB(""); }}
+                    className="text-xs text-[var(--brand-muted)] hover:text-[var(--brand-black)] underline transition-colors"
+                  >
+                    Bingung pilih ukuran?
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {sizes.map((size) => (
                     <button
@@ -324,13 +342,100 @@ export default function ProductDetailPage() {
                       ))}
                     </div>
                   </div>
-                  {review.komentar && <p className="text-sm text-[var(--brand-muted)]">{review.komentar}</p>}
+                  {review.komentar && <p className="text-sm text-[var(--brand-black)] mb-3">{review.komentar}</p>}
+                  {review.images && review.images.length > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      {review.images.map((img) => (
+                        <div key={img.id} className="w-16 h-16 rounded-lg border border-[var(--brand-border)] overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(getImageUrl(img.url), '_blank')}>
+                          <img src={getImageUrl(img.url)} alt="Review" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
       </main>
+
+      {/* Size Calculator Modal */}
+      {showSizeCalc && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowSizeCalc(false)}>
+          <div className="bg-[var(--brand-white)] rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-[var(--brand-black)] text-center">Rekomendasi Ukuran</h3>
+            <p className="text-sm text-[var(--brand-muted)] text-center">Masukkan data tubuhmu untuk mendapatkan saran ukuran yang pas</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-[var(--brand-black)] mb-1">Berat Badan (kg)</label>
+                <input
+                  type="number"
+                  value={sizeCalcBB}
+                  onChange={(e) => setSizeCalcBB(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                  placeholder="Contoh: 65"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--brand-black)] mb-1">Tinggi Badan (cm)</label>
+                <input
+                  type="number"
+                  value={sizeCalcTB}
+                  onChange={(e) => setSizeCalcTB(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-[var(--brand-border)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                  placeholder="Contoh: 170"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const bb = parseFloat(sizeCalcBB);
+                const tb = parseFloat(sizeCalcTB);
+                if (!bb || !tb || bb <= 0 || tb <= 0) {
+                  setSizeResult("Mohon isi berat dan tinggi badan yang valid.");
+                  return;
+                }
+                let recommended = "XL";
+                if (tb <= 160 && bb <= 55) recommended = "S";
+                else if (tb <= 170 && bb <= 65) recommended = "M";
+                else if (tb <= 175 && bb <= 75) recommended = "L";
+                setSizeResult(recommended);
+              }}
+              className="w-full bg-[var(--brand-black)] text-[var(--brand-white)] py-2.5 rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Cek Ukuran
+            </button>
+            {sizeResult && (
+              <div className="text-center p-4 bg-[var(--brand-gray)] rounded-xl">
+                {sizeResult.length <= 2 ? (
+                  <>
+                    <p className="text-sm text-[var(--brand-muted)] mb-1">Berdasarkan BB & TB kamu, kami menyarankan:</p>
+                    <p className="text-3xl font-bold text-[var(--brand-black)]">{sizeResult}</p>
+                    <button
+                      onClick={() => {
+                        setSelectedSize(sizeResult);
+                        setSelectedColor(null);
+                        setShowSizeCalc(false);
+                      }}
+                      className="mt-3 text-sm underline text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors"
+                    >
+                      Pilih ukuran {sizeResult}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-red-500">{sizeResult}</p>
+                )}
+              </div>
+            )}
+            <button
+              onClick={() => setShowSizeCalc(false)}
+              className="w-full text-sm text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

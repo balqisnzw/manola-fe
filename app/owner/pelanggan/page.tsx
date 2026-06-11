@@ -7,15 +7,18 @@ import { MTable } from "@/components/manola/MTable"
 import { MInput } from "@/components/manola/MInput"
 import { MDrawer } from "@/components/manola/MDrawer"
 import { MLoader } from "@/components/manola/MLoader"
-import { LayoutDashboard, Users, UserCog, Settings, Search } from "lucide-react"
+import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Sliders, Search } from "lucide-react"
 import { userService, authService } from "@/lib/services"
 import type { UserData } from "@/lib/services/miscServices"
 
 const navItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+  { label: "Stok Barang", href: "/owner/produk", icon: Package },
+  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
   { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
   { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Pengaturan", href: "/owner/pengaturan", icon: Settings },
+  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
+  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
 ]
 
 export default function OwnerPelangganPage() {

@@ -5,7 +5,7 @@ import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { StatCard } from "@/components/manola/StatCard"
 import { MCard } from "@/components/manola/MCard"
 import { MTable } from "@/components/manola/MTable"
-import { LayoutDashboard, Users, UserCog, Settings, TrendingUp, Calendar, Clock, Package } from "lucide-react"
+import { LayoutDashboard, Users, UserCog, Settings, TrendingUp, Calendar, Clock, Package, ClipboardList, Sliders } from "lucide-react"
 import { MLoader } from "@/components/manola/MLoader"
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from "recharts"
 
@@ -14,9 +14,12 @@ import type { DashboardData } from "@/lib/services/analyticsService"
 
 const navItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+  { label: "Stok Barang", href: "/owner/produk", icon: Package },
+  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
   { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
   { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Pengaturan", href: "/owner/pengaturan", icon: Settings },
+  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
+  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
 ]
 
 function formatRupiah(value: number) {
@@ -154,7 +157,7 @@ export default function OwnerDashboardPage() {
           </MCard>
 
           {/* Top Products */}
-          <MCard>
+          <MCard className="mb-6">
             <h2 className="font-semibold text-[#0A0A0A] mb-4">10 Produk Terlaris</h2>
             {!data?.topProducts || data.topProducts.length === 0 ? (
               <p className="text-[#6B7280] text-center py-8">Belum ada data penjualan</p>
@@ -162,6 +165,7 @@ export default function OwnerDashboardPage() {
               <MTable columns={columns} data={data.topProducts} />
             )}
           </MCard>
+
         </>
       )}
     </SidebarLayout>

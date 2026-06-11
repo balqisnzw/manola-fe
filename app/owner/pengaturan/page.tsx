@@ -5,14 +5,17 @@ import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MInput } from "@/components/manola/MInput"
 import { MButton } from "@/components/manola/MButton"
-import { LayoutDashboard, Users, UserCog, Settings, CheckCircle } from "lucide-react"
+import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Sliders, CheckCircle } from "lucide-react"
 import { authService } from "@/lib/services"
 
 const navItems = [
   { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
+  { label: "Stok Barang", href: "/owner/produk", icon: Package },
+  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
   { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
   { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Pengaturan", href: "/owner/pengaturan", icon: Settings },
+  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
+  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
 ]
 
 export default function OwnerPengaturanPage() {

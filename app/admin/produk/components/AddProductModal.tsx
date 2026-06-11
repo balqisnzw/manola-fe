@@ -8,6 +8,7 @@ import { MLoader } from "@/components/manola/MLoader"
 import { X, Upload } from "lucide-react"
 import { SIZES, type ProductFormState, type VariantRow } from "./types"
 import type { Supplier } from "@/lib/services/supplierService"
+import type { Category } from "@/lib/services/miscServices"
 
 interface AddProductModalProps {
   isOpen: boolean
@@ -19,6 +20,7 @@ interface AddProductModalProps {
   onSubmit: () => void
   submitting: boolean
   suppliers: Supplier[]
+  categories: Category[]
 }
 
 export function AddProductModal({
@@ -31,6 +33,7 @@ export function AddProductModal({
   onSubmit,
   submitting,
   suppliers,
+  categories,
 }: AddProductModalProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -150,16 +153,25 @@ export function AddProductModal({
             </div>
           </div>
 
-          {/* Kategori — form input bebas */}
+          {/* Kategori — dropdown */}
           <div>
             <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Kategori</label>
-            <input
-              type="text"
-              value={formData.category}
-              onChange={(e) => onChange({ ...formData, category: e.target.value })}
-              placeholder="Contoh: Kaos, Celana, Jaket..."
-              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm focus:outline-none focus:border-[#0A0A0A]"
-            />
+            <select
+              value={formData.categoryId}
+              onChange={(e) => {
+                const catId = e.target.value
+                const catName = categories.find((c) => c.id === parseInt(catId))?.nama || ""
+                onChange({ ...formData, categoryId: catId, category: catName })
+              }}
+              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white focus:outline-none focus:border-[#0A0A0A]"
+            >
+              <option value="">-- Pilih Kategori --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nama}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

@@ -10,6 +10,7 @@ import { SIZES, type ProductFormState, type VariantRow } from "./types"
 import { getImageUrl } from "@/lib/utils"
 import type { Product } from "@/lib/services/productService"
 import type { Supplier } from "@/lib/services/supplierService"
+import type { Category } from "@/lib/services/miscServices"
 
 interface EditProductModalProps {
   isOpen: boolean
@@ -22,6 +23,7 @@ interface EditProductModalProps {
   onSubmit: () => void
   submitting: boolean
   suppliers: Supplier[]
+  categories: Category[]
 }
 
 export function EditProductModal({
@@ -35,6 +37,7 @@ export function EditProductModal({
   onSubmit,
   submitting,
   suppliers,
+  categories,
 }: EditProductModalProps) {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
@@ -170,16 +173,25 @@ export function EditProductModal({
             </div>
           </div>
 
-          {/* Kategori — form input bebas */}
+          {/* Kategori — dropdown */}
           <div>
             <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Kategori</label>
-            <input
-              type="text"
-              value={formData.category}
-              onChange={(e) => onChange({ ...formData, category: e.target.value })}
-              placeholder="Contoh: Kaos, Celana, Jaket..."
-              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm focus:outline-none focus:border-[#0A0A0A]"
-            />
+            <select
+              value={formData.categoryId}
+              onChange={(e) => {
+                const catId = e.target.value
+                const catName = categories.find((c) => c.id === parseInt(catId))?.nama || ""
+                onChange({ ...formData, categoryId: catId, category: catName })
+              }}
+              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white focus:outline-none focus:border-[#0A0A0A]"
+            >
+              <option value="">-- Pilih Kategori --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nama}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

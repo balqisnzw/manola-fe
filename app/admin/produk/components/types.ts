@@ -19,6 +19,7 @@ export interface ProductFormState {
   description: string
   price: string
   category: string
+  categoryId: string
   supplierId: string
   variants: VariantRow[]
 }
@@ -28,6 +29,7 @@ export const DEFAULT_FORM: ProductFormState = {
   description: "",
   price: "",
   category: "",
+  categoryId: "",
   supplierId: "",
   variants: [{ size: "M", color: "", stock: "" }],
 }

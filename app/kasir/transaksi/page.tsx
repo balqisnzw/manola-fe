@@ -20,10 +20,11 @@ import {
   Settings } from "lucide-react"
 import { MLoader } from "@/components/manola/MLoader"
 
-import { productService, orderService, authService } from "@/lib/services"
+import { productService, orderService, authService, shiftService, paymentService } from "@/lib/services"
 import type { Product } from "@/lib/services/productService"
 import { getImageUrl } from "@/lib/utils"
 import { toast } from "sonner"
+import type { CashierShift } from "@/lib/services/miscServices"
 
 const navItems = [
   { label: "Transaksi", href: "/kasir/transaksi" },
@@ -57,6 +58,11 @@ export default function KasirTransaksiPage() {
   const [submitting, setSubmitting] = useState(false)
   const [mobileView, setMobileView] = useState<"products" | "cart">("products")
 
+  // Cashier shift state
+  const [activeShift, setActiveShift] = useState<CashierShift | null>(null)
+  const [modalAwalInput, setModalAwalInput] = useState("")
+  const [loadingShift, setLoadingShift] = useState(true)
+
   // Variant selection state
   const [selectedVariantId, setSelectedVariantId] = useState<number | null>(null)
   const [selectedSize, setSelectedSize] = useState("")
@@ -67,6 +73,7 @@ export default function KasirTransaksiPage() {
 
   useEffect(() => {
     loadProducts()
+    checkActiveShift()
   }, [])
 
   async function loadProducts() {
@@ -78,6 +85,32 @@ export default function KasirTransaksiPage() {
       console.error("Failed to load products:", err)
     } finally {
       setLoadingProducts(false)
+    }
+  }
+
+  async function checkActiveShift() {
+    setLoadingShift(true)
+    try {
+      const shift = await shiftService.getActive()
+      setActiveShift(shift)
+    } catch (err) {
+      console.error("Failed to check active shift:", err)
+    } finally {
+      setLoadingShift(false)
+    }
+  }
+
+  async function handleStartShift() {
+    if (!modalAwalInput) {
+      toast.error("Modal awal wajib diisi")
+      return
+    }
+    try {
+      const shift = await shiftService.start(parseInt(modalAwalInput))
+      setActiveShift(shift)
+      toast.success("Shift berhasil dibuka")
+    } catch (err: any) {
+      toast.error(err.message || "Gagal membuka shift")
     }
   }
 
@@ -150,12 +183,13 @@ export default function KasirTransaksiPage() {
 
     setSubmitting(true)
     try {
-      await orderService.create({
+      const order = await orderService.create({
         jenis: "OFFLINE",
-        metode_pembayaran: paymentMethod === "cash" ? "CASH" : "QRIS",
         items: cart.map((item) => ({
           variantId: item.variantId,
           jumlah: item.qty })) })
+      
+      await paymentService.create(order.id, paymentMethod === "cash" ? "CASH" : "QRIS")
       setShowSuccessModal(true)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal menyelesaikan transaksi"
@@ -174,6 +208,12 @@ export default function KasirTransaksiPage() {
 
   const rightContent = (
     <div className="flex items-center gap-4">
+      <Link
+        href="/kasir/shift"
+        className="text-xs sm:text-sm font-semibold text-gray-700 hover:text-black border border-gray-300 rounded px-2.5 py-1.5 bg-white hover:bg-gray-50 transition"
+      >
+        Shift & Petty Cash
+      </Link>
       <span className="text-sm text-[#6B7280]">{user?.nama ?? "Kasir"}</span>
 
       <Link
@@ -189,6 +229,35 @@ export default function KasirTransaksiPage() {
 
   return (
     <NavbarLayout navItems={navItems} rightContent={rightContent}>
+      {/* Shift Guard Overlay */}
+      {!activeShift && !loadingShift && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-2xl p-6 border border-gray-100 animate-in fade-in zoom-in duration-200">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Shift Kasir Belum Dibuka</h2>
+            <p className="text-sm text-gray-500 mb-6">Silakan masukkan jumlah modal awal (petty cash) untuk membuka laci kasir dan memulai transaksi hari ini.</p>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-700">Modal Awal (Rupiah)</label>
+                <MInput
+                  placeholder="Contoh: 100000"
+                  type="number"
+                  value={modalAwalInput}
+                  onChange={(e) => setModalAwalInput(e.target.value)}
+                />
+              </div>
+              <MButton
+                variant="primary"
+                fullWidth
+                size="lg"
+                onClick={handleStartShift}
+              >
+                Buka Shift & Mulai Kerja
+              </MButton>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex flex-col h-[calc(100vh-56px)]">
         {/* Mobile Tabs */}

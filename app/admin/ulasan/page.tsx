@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MTable } from "@/components/manola/MTable"
-import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Star } from "lucide-react"
+import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Star, FolderTree, Tag, Image, FileText } from "lucide-react"
 import { MLoader } from "@/components/manola/MLoader"
 
 import { productService, authService } from "@/lib/services"
@@ -15,9 +15,13 @@ import type { Review } from "@/lib/services/miscServices"
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
+  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
   { label: "Stok", href: "/admin/stok", icon: Archive },
   { label: "Supplier", href: "/admin/supplier", icon: Truck },
   { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
+  { label: "Promo", href: "/admin/promo", icon: Tag },
+  { label: "Banner", href: "/admin/banner", icon: Image },
+  { label: "Laporan", href: "/admin/laporan", icon: FileText },
   { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]

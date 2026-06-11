@@ -30,6 +30,8 @@ export interface DashboardData {
   monthlyData: MonthlyData[];
   topProducts: TopProduct[];
   lowStockProducts: LowStockItem[];
+  bestCashier?: { id: number; name: string; totalSales: number; orderCount: number } | null;
+  cashierRanking?: { id: number; name: string; totalSales: number; orderCount: number }[];
 }
 
 interface ApiResponse<T> {

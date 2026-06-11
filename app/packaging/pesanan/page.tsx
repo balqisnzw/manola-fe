@@ -33,6 +33,8 @@ export default function PackagingPesananPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([])
+  const [bulkSubmitting, setBulkSubmitting] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [orderToConfirm, setOrderToConfirm] = useState<Order | null>(null)
   const [resiInput, setResiInput] = useState("")
@@ -57,6 +59,41 @@ export default function PackagingPesananPage() {
       console.error("Failed to load orders:", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const toggleSelectOrder = (id: number) => {
+    if (selectedOrderIds.includes(id)) {
+      setSelectedOrderIds(selectedOrderIds.filter((oId) => oId !== id))
+    } else {
+      setSelectedOrderIds([...selectedOrderIds, id])
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.length === displayOrders.length) {
+      setSelectedOrderIds([])
+    } else {
+      setSelectedOrderIds(displayOrders.map((o) => o.id))
+    }
+  }
+
+  const handleBulkUpdateStatus = async (status: "DIKEMAS" | "SELESAI") => {
+    if (selectedOrderIds.length === 0) return
+    setBulkSubmitting(true)
+    try {
+      await orderService.bulkUpdateStatus(selectedOrderIds, status)
+      toast.success(
+        `Berhasil memperbarui ${selectedOrderIds.length} pesanan menjadi ${
+          status === "DIKEMAS" ? "Sedang Dikemas" : "Selesai"
+        }`
+      )
+      setSelectedOrderIds([])
+      loadOrders()
+    } catch (err: any) {
+      toast.error(err.message || "Gagal memperbarui status secara massal")
+    } finally {
+      setBulkSubmitting(false)
     }
   }
 
@@ -96,6 +133,12 @@ export default function PackagingPesananPage() {
 
   const rightContent = (
     <div className="flex items-center gap-4">
+      <Link
+        href="/packaging/scan"
+        className="text-xs sm:text-sm font-semibold text-gray-700 hover:text-black border border-gray-300 rounded px-2.5 py-1.5 bg-white hover:bg-gray-50 transition"
+      >
+        Scan Barcode / QC
+      </Link>
       <span className="text-sm text-[#6B7280]">{user?.nama ?? "Packaging"}</span>
 
       <Link
@@ -129,8 +172,16 @@ export default function PackagingPesananPage() {
 
   return (
     <NavbarLayout navItems={navItems} rightContent={rightContent}>
-      <div className="p-4 sm:p-8">
-        <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Pesanan</h1>
+      <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 border-b border-gray-100 pb-4">
+          <h1 className="text-2xl font-bold text-[#0A0A0A] tracking-tight">Daftar Pesanan</h1>
+          <Link
+            href="/packaging/scan"
+            className="w-full sm:w-auto bg-[#0A0A0A] hover:bg-neutral-800 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shadow-sm hover:shadow transition text-center"
+          >
+            Quality Control (Scan Barcode)
+          </Link>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -142,7 +193,7 @@ export default function PackagingPesananPage() {
         {/* Tab Navigation */}
         <div className="flex gap-6 mb-4 border-b border-[#E5E7EB]">
           <button
-            onClick={() => setActiveTab("online")}
+            onClick={() => { setActiveTab("online"); setSelectedOrderIds([]); }}
             className={`pb-3 text-sm transition ${
               activeTab === "online"
                 ? "border-b-2 border-[#0A0A0A] text-[#0A0A0A] font-medium"
@@ -152,7 +203,7 @@ export default function PackagingPesananPage() {
             Pesanan Online
           </button>
           <button
-            onClick={() => setActiveTab("offline")}
+            onClick={() => { setActiveTab("offline"); setSelectedOrderIds([]); }}
             className={`pb-3 text-sm transition ${
               activeTab === "offline"
                 ? "border-b-2 border-[#0A0A0A] text-[#0A0A0A] font-medium"
@@ -162,6 +213,43 @@ export default function PackagingPesananPage() {
             Pesanan Offline
           </button>
         </div>
+
+        {/* Bulk Action Bar */}
+        {displayOrders.length > 0 && (
+          <div className="bg-[#F9F9F9] border border-[#E5E7EB] rounded-lg p-3.5 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedOrderIds.length === displayOrders.length && displayOrders.length > 0}
+                onChange={toggleSelectAll}
+                className="w-4 h-4 rounded text-black border-gray-300 focus:ring-black cursor-pointer"
+              />
+              <span className="text-sm text-gray-600 font-medium">Pilih Semua ({selectedOrderIds.length} Terpilih)</span>
+            </div>
+            {selectedOrderIds.length > 0 && (
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <MButton
+                  variant="secondary"
+                  size="sm"
+                  disabled={bulkSubmitting}
+                  onClick={() => handleBulkUpdateStatus("DIKEMAS")}
+                >
+                  Tandai Sedang Dikemas
+                </MButton>
+                {activeTab === "offline" && (
+                  <MButton
+                    variant="primary"
+                    size="sm"
+                    disabled={bulkSubmitting}
+                    onClick={() => handleBulkUpdateStatus("SELESAI")}
+                  >
+                    Tandai Selesai
+                  </MButton>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Order List */}
         {loading ? (
@@ -177,43 +265,63 @@ export default function PackagingPesananPage() {
               displayOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="bg-white border border-[#E5E7EB] rounded-lg p-4"
+                  className="bg-white border border-[#E5E7EB] rounded-lg p-4 flex items-start gap-4 hover:shadow-sm transition"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-sm text-[#0A0A0A]">#{order.id}</span>
-                    <span className="text-xs text-[#6B7280]">
-                      {new Date(order.createdAt).toLocaleString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit" })}
-                    </span>
+                  <div className="pt-1 select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrderIds.includes(order.id)}
+                      onChange={() => toggleSelectOrder(order.id)}
+                      className="w-4 h-4 rounded text-black border-gray-300 focus:ring-black cursor-pointer"
+                    />
                   </div>
-                  <p className="font-medium text-[#0A0A0A] mt-1">
-                    {order.user?.nama ?? "Walk-in Customer"}
-                  </p>
-                  <p className="text-sm text-[#6B7280] mt-1 truncate">{getProductSummary(order)}</p>
-                  <div className="flex items-center justify-between mt-3">
-                    <MBadge variant="warning">{order.status === "DIKEMAS" ? "Sedang Dikemas" : "Menunggu Dikemas"}</MBadge>
-                    <div className="flex gap-2">
-                      <MButton
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        Lihat Detail
-                      </MButton>
-                      <MButton
-                        variant="primary"
-                        size="sm"
-                        onClick={() => {
-                          setOrderToConfirm(order)
-                          setShowConfirmModal(true)
-                        }}
-                      >
-                        Selesai Dikemas
-                      </MButton>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-sm text-[#0A0A0A] font-semibold">#{order.id}</span>
+                      <span className="text-xs text-[#6B7280]">
+                        {new Date(order.createdAt).toLocaleString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </span>
+                    </div>
+                    <p className="font-semibold text-[#0A0A0A] mt-1 text-sm">
+                      {order.user?.nama ?? "Walk-in Customer"}
+                    </p>
+                    <p className="text-xs text-[#6B7280] mt-0.5 truncate">{getProductSummary(order)}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-3 mt-3.5 pt-3 border-t border-gray-100">
+                      <MBadge variant={order.status === "DIKEMAS" ? "success" : "warning"}>
+                        {order.status === "DIKEMAS" ? "Sedang Dikemas" : "Menunggu Dikemas"}
+                      </MBadge>
+                      <div className="flex gap-2">
+                        <Link
+                          href={`/packaging/resi/${order.id}`}
+                          target="_blank"
+                          className="inline-flex items-center justify-center border border-gray-300 hover:border-[#0A0A0A] rounded px-3 py-1.5 text-xs font-semibold text-gray-700 hover:text-black transition bg-white"
+                        >
+                          Cetak Resi
+                        </Link>
+                        <MButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          Lihat Detail
+                        </MButton>
+                        <MButton
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            setOrderToConfirm(order)
+                            setShowConfirmModal(true)
+                          }}
+                        >
+                          Selesai Dikemas
+                        </MButton>
+                      </div>
                     </div>
                   </div>
                 </div>

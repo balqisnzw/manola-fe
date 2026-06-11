@@ -52,6 +52,7 @@ export interface CreateOrderPayload {
   jenis: OrderJenis;
   alamat_pengiriman?: string;
   ongkos_kirim?: number;
+  ekspedisi?: string;
   catatan?: string;
   metode_pembayaran?: PaymentMetode;
   items: {
@@ -109,6 +110,14 @@ export const orderService = {
     const res = await api.put<ApiResponse<Order>>(`/orders/${id}/status`, { status, ...extra });
     return res.data;
   },
+
+  /**
+   * PUT /orders/bulk-status
+   */
+  async bulkUpdateStatus(ids: number[], status: OrderStatus): Promise<Order[]> {
+    const res = await api.put<ApiResponse<Order[]>>("/orders/bulk-status", { ids, status });
+    return res.data;
+  },
 };
 
 // ─── Payment service ───────────────────────────────────────────────────────────
@@ -134,7 +143,8 @@ export const paymentService = {
    * POST /payments
    */
   async create(orderId: number, metode_pembayaran: PaymentMetode): Promise<Payment> {
-    return api.post<Payment>("/payments", { orderId, metode_pembayaran });
+    const res = await api.post<ApiResponse<Payment>>("/payments", { orderId, metode_pembayaran });
+    return res.data;
   },
 
   /**
@@ -142,5 +152,21 @@ export const paymentService = {
    */
   async updateStatus(id: number, status_pembayaran: PaymentStatus): Promise<Payment> {
     return api.put<Payment>(`/payments/${id}/status`, { status_pembayaran });
+  },
+
+  /**
+   * POST /payments/:orderId/regenerate-token
+   */
+  async regenerateToken(orderId: number): Promise<Payment> {
+    const res = await api.post<ApiResponse<Payment>>(`/payments/${orderId}/regenerate-token`);
+    return res.data;
+  },
+
+  /**
+   * POST /payments/:orderId/cancel
+   */
+  async cancel(orderId: number): Promise<Payment> {
+    const res = await api.post<ApiResponse<Payment>>(`/payments/${orderId}/cancel`);
+    return res.data;
   },
 };

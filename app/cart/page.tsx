@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { useCart } from "@/lib/CartContext";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, getImageUrl } from "@/lib/utils";
 
 
 export default function CartPage() {
@@ -50,7 +50,7 @@ export default function CartPage() {
                 <div key={item.variantId} className="bg-[var(--brand-white)] rounded-xl border border-[var(--brand-border)] p-4 sm:p-6">
                   <div className="flex gap-4">
                     <div className="w-24 h-24 sm:w-32 sm:h-32 bg-[var(--brand-gray)] rounded-lg overflow-hidden flex-shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">

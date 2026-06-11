@@ -5,15 +5,19 @@ import { SidebarLayout } from "@/components/layouts/SidebarLayout"
 import { MCard } from "@/components/manola/MCard"
 import { MInput } from "@/components/manola/MInput"
 import { MButton } from "@/components/manola/MButton"
-import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, CheckCircle } from "lucide-react"
+import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, CheckCircle, FolderTree, Tag, Image, FileText } from "lucide-react"
 import { authService } from "@/lib/services"
 
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
+  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
   { label: "Stok", href: "/admin/stok", icon: Archive },
   { label: "Supplier", href: "/admin/supplier", icon: Truck },
   { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
+  { label: "Promo", href: "/admin/promo", icon: Tag },
+  { label: "Banner", href: "/admin/banner", icon: Image },
+  { label: "Laporan", href: "/admin/laporan", icon: FileText },
   { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]

@@ -10,16 +10,21 @@ import { productService, type Product } from "@/lib/services/productService";
 import { useCart } from "@/lib/CartContext";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { ProductCardSkeleton } from "@/components/manola/Skeleton";
+import { NotificationBell } from "@/components/manola/NotificationBell";
+import { bannerService, type Banner } from "@/lib/services/miscServices";
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [tempSearchQuery, setTempSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { cartCount } = useCart();
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   // Real data from API
   const [products, setProducts] = useState<Product[]>([]);
+  const [banners, setBanners] = useState<Banner[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,8 +39,12 @@ export default function HomePage() {
     const loadProducts = async () => {
       try {
         setLoading(true);
-        const data = await productService.getAll();
-        setProducts(data);
+        const [prodData, bannerData] = await Promise.all([
+          productService.getAll(),
+          bannerService.getAll(true),
+        ]);
+        setProducts(prodData);
+        setBanners(bannerData);
       } catch (err) {
         console.error("Error fetching products:", err);
       } finally {
@@ -44,6 +53,15 @@ export default function HomePage() {
     };
     loadProducts();
   }, []);
+
+  // Auto-play carousel
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [banners]);
 
   // Derive categories from real products
   const categories = Array.from(
@@ -62,6 +80,11 @@ export default function HomePage() {
     return matchesSearch && matchesCategory;
   });
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(tempSearchQuery);
+  };
+
   return (
     <div className="min-h-screen bg-[var(--brand-gray)]">
       {/* Header */}
@@ -77,26 +100,31 @@ export default function HomePage() {
 
             {/* Search & Actions */}
             <div className="flex items-center gap-4">
-              <div className="hidden sm:block relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--brand-muted)]" />
+              <form onSubmit={handleSearch} className="hidden sm:block relative">
+                <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors">
+                  <Search className="w-4 h-4" />
+                </button>
                 <input
                   type="text"
                   placeholder="Cari produk..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={tempSearchQuery}
+                  onChange={(e) => setTempSearchQuery(e.target.value)}
                   className="w-64 pl-10 pr-4 py-2 text-sm bg-[var(--brand-gray)] border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
                 />
-              </div>
+              </form>
 
               {currentUser?.role === "USER" && (
-                <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
-                  <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">
-                      {cartCount}
-                    </span>
-                  )}
-                </Link>
+                <>
+                  <NotificationBell />
+                  <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
+                    <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">
+                        {cartCount}
+                      </span>
+                    )}
+                  </Link>
+                </>
               )}
 
               <Link
@@ -130,16 +158,18 @@ export default function HomePage() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-[var(--brand-border)] bg-[var(--brand-white)]">
             <div className="px-4 py-4 space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--brand-muted)]" />
+              <form onSubmit={handleSearch} className="relative">
+                <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--brand-muted)] hover:text-[var(--brand-black)] transition-colors">
+                  <Search className="w-4 h-4" />
+                </button>
                 <input
                   type="text"
                   placeholder="Cari produk..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={tempSearchQuery}
+                  onChange={(e) => setTempSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 text-sm bg-[var(--brand-gray)] border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
                 />
-              </div>
+              </form>
 
             </div>
           </div>
@@ -147,27 +177,69 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative bg-[var(--brand-black)] text-[var(--brand-white)] overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="max-2xl">
-            <MBadge variant="outline" className="mb-4 border-[var(--brand-white)] text-[var(--brand-white)]">
-              New Collection 2026
-            </MBadge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
-              Street Culture.<br />Local Pride.
-            </h1>
-            <p className="text-lg text-gray-300 mb-8 max-w-lg">
-              Koleksi streetwear lokal yang menggabungkan kenyamanan, gaya, dan identitas Indonesia untuk setiap momen.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <MButton variant="outline" size="lg" className="bg-transparent border-[var(--brand-white)] text-[var(--brand-white)] hover:bg-[var(--brand-white)] hover:text-[var(--brand-black)]">
-                Tentang Kami
-              </MButton>
-
+      <section className="relative bg-[var(--brand-black)] text-[var(--brand-white)] overflow-hidden min-h-[350px] sm:min-h-[450px] flex items-center">
+        {banners.length > 0 ? (
+          <div className="w-full relative h-full">
+            {banners.map((banner, index) => (
+              <div
+                key={banner.id}
+                className={`absolute inset-0 transition-opacity duration-1000 flex items-center ${
+                  index === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"
+                }`}
+              >
+                <div className="absolute inset-0">
+                  <img
+                    src={getImageUrl(banner.gambar)}
+                    alt={banner.judul}
+                    className="w-full h-full object-cover opacity-40"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent" />
+                </div>
+                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 w-full z-20">
+                  <div className="max-w-2xl">
+                    <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+                      {banner.judul}
+                    </h1>
+                    {banner.link && (
+                      <Link href={banner.link}>
+                        <MButton variant="outline" size="lg" className="bg-transparent border-[var(--brand-white)] text-[var(--brand-white)] hover:bg-[var(--brand-white)] hover:text-[var(--brand-black)]">
+                          Lihat Promo
+                        </MButton>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {banners.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+                {banners.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      idx === currentSlide ? "bg-[var(--brand-white)] w-4" : "bg-gray-500"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 z-10 w-full">
+            <div className="max-w-2xl">
+              <MBadge variant="outline" className="mb-4 border-[var(--brand-white)] text-[var(--brand-white)]">
+                New Collection 2026
+              </MBadge>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
+                Street Culture.<br />Local Pride.
+              </h1>
+              <p className="text-lg text-gray-300 mb-8 max-w-lg">
+                Koleksi streetwear lokal yang menggabungkan kenyamanan, gaya, dan identitas Indonesia untuk setiap momen.
+              </p>
             </div>
           </div>
-        </div>
-        <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-gray-800 to-transparent opacity-50" />
+        )}
       </section>
 
       {/* Categories */}
@@ -266,7 +338,7 @@ export default function HomePage() {
           {!loading && filteredProducts.length === 0 && (
             <div className="text-center py-16">
               <p className="text-[var(--brand-muted)]">Tidak ada produk ditemukan</p>
-              <MButton variant="outline" className="mt-4" onClick={() => { setSearchQuery(""); setSelectedCategory(null); }}>
+              <MButton variant="outline" className="mt-4" onClick={() => { setSearchQuery(""); setTempSearchQuery(""); setSelectedCategory(null); }}>
                 Reset Filter
               </MButton>
             </div>

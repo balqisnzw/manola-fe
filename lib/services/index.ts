@@ -7,3 +7,6 @@ export * from "./orderService";
 export * from "./supplierService";
 export * from "./miscServices";
 export * from "./analyticsService";
+export * from "./addressService";
+export * from "./restockService";
+export * from "./shippingService";

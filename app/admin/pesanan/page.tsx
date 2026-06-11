@@ -9,7 +9,7 @@ import { MInput } from "@/components/manola/MInput"
 import { MBadge } from "@/components/manola/MBadge"
 import { MDrawer } from "@/components/manola/MDrawer"
 import { MLoader } from "@/components/manola/MLoader"
-import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Search, Check } from "lucide-react"
+import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Search, Check, FolderTree, Tag, Image, FileText } from "lucide-react"
 
 import { orderService, authService } from "@/lib/services"
 import type { Order } from "@/lib/services/orderService"
@@ -18,9 +18,13 @@ import { formatPrice } from "@/lib/utils"
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
+  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
   { label: "Stok", href: "/admin/stok", icon: Archive },
   { label: "Supplier", href: "/admin/supplier", icon: Truck },
   { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
+  { label: "Promo", href: "/admin/promo", icon: Tag },
+  { label: "Banner", href: "/admin/banner", icon: Image },
+  { label: "Laporan", href: "/admin/laporan", icon: FileText },
   { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]

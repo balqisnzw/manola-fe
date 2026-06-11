@@ -33,6 +33,7 @@ export interface Product {
   images: ProductImage[];
   variants: ProductVariant[];
   supplier?: ProductSupplier | null;
+  categoryId?: number | null;
   createdAt: string;
 }
 
@@ -54,6 +55,7 @@ export interface CreateProductPayload {
   description?: string;
   price: number;
   category?: string;
+  categoryId?: number;
   supplierId?: number;
   /** JSON string dari array variant, e.g. '[{"size":"M","color":"Merah","stock":10}]' */
   variants?: string;
@@ -162,6 +164,7 @@ export function buildProductFormData(
   if (payload.description) fd.append("description", payload.description);
   fd.append("price", String(payload.price));
   if (payload.category) fd.append("category", payload.category);
+  if (payload.categoryId !== undefined) fd.append("categoryId", String(payload.categoryId));
   if (payload.supplierId !== undefined) fd.append("supplierId", String(payload.supplierId));
   if (variantList.length > 0) {
     fd.append("variants", JSON.stringify(variantList));

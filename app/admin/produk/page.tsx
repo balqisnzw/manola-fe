@@ -20,6 +20,10 @@ import {
   Pencil,
   Trash2,
   CheckCircle,
+  FolderTree,
+  Tag,
+  Image,
+  FileText,
 } from "lucide-react"
 import {
   productService,
@@ -27,6 +31,7 @@ import {
   type Product,
 } from "@/lib/services/productService"
 import { supplierService, type Supplier } from "@/lib/services/supplierService"
+import { categoryService, type Category } from "@/lib/services/miscServices"
 import { AddProductModal } from "./components/AddProductModal"
 import { EditProductModal } from "./components/EditProductModal"
 import { DeleteProductModal } from "./components/DeleteProductModal"
@@ -40,9 +45,13 @@ import { MLoader } from "@/components/manola/MLoader"
 const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
+  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
   { label: "Stok", href: "/admin/stok", icon: Archive },
   { label: "Supplier", href: "/admin/supplier", icon: Truck },
   { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
+  { label: "Promo", href: "/admin/promo", icon: Tag },
+  { label: "Banner", href: "/admin/banner", icon: Image },
+  { label: "Laporan", href: "/admin/laporan", icon: FileText },
   { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
   { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
 ]
@@ -64,6 +73,7 @@ export default function AdminProdukPage() {
   // Data
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -95,12 +105,14 @@ export default function AdminProdukPage() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [productData, supplierData] = await Promise.all([
+      const [productData, supplierData, categoryData] = await Promise.all([
         productService.getAll(),
         supplierService.getAll(),
+        categoryService.getAll(),
       ])
       setProducts(productData)
       setSuppliers(supplierData)
+      setCategories(categoryData)
       const cats = Array.from(new Set(productData.map((p) => p.category).filter(Boolean) as string[]))
       setCategoryList(cats)
     } catch (err) {
@@ -116,6 +128,8 @@ export default function AdminProdukPage() {
       setLoading(true)
       const data = await productService.getAll()
       setProducts(data)
+      const categoryData = await categoryService.getAll()
+      setCategories(categoryData)
       const cats = Array.from(new Set(data.map((p) => p.category).filter(Boolean) as string[]))
       setCategoryList(cats)
     } catch (err) {
@@ -169,6 +183,7 @@ export default function AdminProdukPage() {
       description: product.description ?? "",
       price: product.price.toString(),
       category: product.category ?? "",
+      categoryId: product.categoryId?.toString() ?? "",
       supplierId: product.supplierId?.toString() ?? "",
       variants:
         product.variants.length > 0
@@ -201,6 +216,7 @@ export default function AdminProdukPage() {
         description: formData.description || undefined,
         price: parseInt(formData.price),
         category: formData.category || undefined,
+        categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
       },
       toVariantPayload(formData.variants),
@@ -232,6 +248,7 @@ export default function AdminProdukPage() {
         description: formData.description || undefined,
         price: parseInt(formData.price),
         category: formData.category || undefined,
+        categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
       },
       toVariantPayload(formData.variants),
@@ -411,6 +428,7 @@ export default function AdminProdukPage() {
         onSubmit={handleAddProduct}
         submitting={submitting}
         suppliers={suppliers}
+        categories={categories}
       />
 
       {/* ── Modal Edit ────────────────────────────────────────────────────────── */}
@@ -425,6 +443,7 @@ export default function AdminProdukPage() {
         onSubmit={handleEditProduct}
         submitting={submitting}
         suppliers={suppliers}
+        categories={categories}
       />
 
       {/* ── Modal Hapus ───────────────────────────────────────────────────────── */}
