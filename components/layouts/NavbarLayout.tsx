@@ -5,6 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Menu, X } from "lucide-react"
+import { settingService } from "@/lib/services/miscServices"
+import { getImageUrl } from "@/lib/utils"
 
 interface NavItem {
   label: string
@@ -20,6 +22,13 @@ interface NavbarLayoutProps {
 export function NavbarLayout({ navItems, children, rightContent }: NavbarLayoutProps) {
   const pathname = usePathname()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    settingService.get().then(s => {
+      if (s.logo_url) setLogoUrl(s.logo_url)
+    }).catch(() => {})
+  }, [])
 
   // Tutup menu mobile ketika rute berubah
   useEffect(() => {
@@ -31,7 +40,11 @@ export function NavbarLayout({ navItems, children, rightContent }: NavbarLayoutP
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-[#E5E7EB] flex items-center px-4 md:px-8 justify-between z-50">
         {/* Logo */}
-        <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">MANOLA</span>
+        {logoUrl ? (
+          <img src={getImageUrl(logoUrl)} alt="MANOLA" className="h-6 object-contain" />
+        ) : (
+          <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">MANOLA</span>
+        )}
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">

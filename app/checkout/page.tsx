@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, CreditCard, Truck, MapPin, ChevronDown } from "lucide-react"
 import { MLoader } from "@/components/manola/MLoader";
 import { MButton } from "@/components/manola/MButton";
@@ -10,7 +10,7 @@ import { MInput } from "@/components/manola/MInput";
 import { useCart } from "@/lib/CartContext";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
-import { orderService, paymentService, authService, addressService, shippingService } from "@/lib/services";
+import { orderService, paymentService, authService, addressService, shippingService, voucherService } from "@/lib/services";
 import type { Address, ShippingCostDetail } from "@/lib/services";
 import Script from "next/script";
 
@@ -20,7 +20,25 @@ import Script from "next/script";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isBuyNow = searchParams.get("buy_now") === "true";
+
   const { items: cartItems, clearCart } = useCart();
+  const [checkoutItems, setCheckoutItems] = useState(cartItems);
+
+  useEffect(() => {
+    if (isBuyNow) {
+      const stored = sessionStorage.getItem("buyNowItem");
+      if (stored) {
+        try {
+          setCheckoutItems(JSON.parse(stored));
+        } catch(e) {}
+      }
+    } else {
+      setCheckoutItems(cartItems);
+    }
+  }, [isBuyNow, cartItems]);
+
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -33,6 +51,17 @@ export default function CheckoutPage() {
   const [selectedShippingService, setSelectedShippingService] = useState<string>("");
   const [shippingCost, setShippingCost] = useState<number>(0);
   const [isLoadingShipping, setIsLoadingShipping] = useState<boolean>(false);
+
+  // Voucher states
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<any | null>(null);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [isLoadingVoucher, setIsLoadingVoucher] = useState(false);
+  const [voucherError, setVoucherError] = useState<string | null>(null);
+
+  const subtotal = checkoutItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const shipping = shippingCost;
+  const total = Math.max(0, subtotal - discountAmount) + shipping;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -84,16 +113,16 @@ export default function CheckoutPage() {
     }));
   }
 
-  // Effect to automatically calculate shipping when address, courier, or cartItems change
+  // Effect to automatically calculate shipping when address, courier, or checkoutItems change
   useEffect(() => {
-    if (selectedAddressId && cartItems.length > 0) {
+    if (selectedAddressId && checkoutItems.length > 0) {
       updateShippingCost(selectedAddressId, courier);
     } else {
       setShippingOptions([]);
       setShippingCost(0);
       setSelectedShippingService("");
     }
-  }, [selectedAddressId, courier, cartItems]);
+  }, [selectedAddressId, courier, checkoutItems]);
 
   async function updateShippingCost(addrId: number, selectedCourier: string) {
     const addr = addresses.find((a) => a.id === addrId);
@@ -107,7 +136,7 @@ export default function CheckoutPage() {
     setIsLoadingShipping(true);
     try {
       // 500 grams default weight per clothing item
-      const totalWeight = cartItems.reduce((sum, item) => sum + 500 * item.quantity, 0);
+      const totalWeight = checkoutItems.reduce((sum, item) => sum + 500 * item.quantity, 0);
       const data = await shippingService.calculateCost({
         destinationDistrictId: addr.districtId,
         weight: totalWeight,
@@ -138,6 +167,43 @@ export default function CheckoutPage() {
     setCourier(newCourier);
   };
 
+  const handleApplyVoucher = async () => {
+    if (!voucherInput.trim()) return;
+    setIsLoadingVoucher(true);
+    setVoucherError(null);
+    try {
+      const res = await voucherService.validate(voucherInput.trim(), subtotal);
+      setAppliedVoucher(res.voucher);
+      setDiscountAmount(res.diskon);
+      toast.success(`Voucher "${res.voucher.kode}" berhasil diterapkan!`);
+    } catch (err: any) {
+      console.error(err);
+      setVoucherError(err.message || "Kode voucher tidak valid");
+      toast.error(err.message || "Gagal menerapkan voucher");
+    } finally {
+      setIsLoadingVoucher(false);
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setDiscountAmount(0);
+    setVoucherInput("");
+    setVoucherError(null);
+    toast.success("Voucher berhasil dihapus");
+  };
+
+  // Clear voucher if subtotal doesn't meet minimum requirement anymore
+  useEffect(() => {
+    if (appliedVoucher && appliedVoucher.min_pembelian && subtotal < appliedVoucher.min_pembelian) {
+      setAppliedVoucher(null);
+      setDiscountAmount(0);
+      setVoucherInput("");
+      setVoucherError(null);
+      toast.error("Voucher dibatalkan karena total belanja tidak memenuhi syarat minimum pembelian.");
+    }
+  }, [subtotal, appliedVoucher]);
+
   function handleSelectAddress(addrId: number) {
     const addr = addresses.find((a) => a.id === addrId);
     if (addr) {
@@ -147,16 +213,14 @@ export default function CheckoutPage() {
     }
   }
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = shippingCost;
-  const total = subtotal + shipping;
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async () => {
-    if (cartItems.length === 0) {
+    if (checkoutItems.length === 0) {
       toast.error("Ringkasan belanja kosong");
       return;
     }
@@ -184,7 +248,8 @@ export default function CheckoutPage() {
         ongkos_kirim: shipping,
         ekspedisi: `${courier.toUpperCase()} - ${selectedShippingService}`,
         catatan: formData.notes || undefined,
-        items: cartItems.map((item) => ({
+        voucherCode: appliedVoucher ? appliedVoucher.kode : undefined,
+        items: checkoutItems.map((item) => ({
           variantId: item.variantId,
           jumlah: item.quantity
         }))
@@ -199,12 +264,14 @@ export default function CheckoutPage() {
         (window as any).snap.pay(token, {
           onSuccess: function() {
             toast.success("Pembayaran berhasil! Pesanan Anda sedang diproses.");
-            clearCart();
+            if (isBuyNow) sessionStorage.removeItem("buyNowItem");
+            else clearCart();
             router.push("/");
           },
           onPending: function() {
             toast.success("Menunggu pembayaran Anda diselesaikan.");
-            clearCart();
+            if (isBuyNow) sessionStorage.removeItem("buyNowItem");
+            else clearCart();
             router.push("/");
           },
           onError: function() {
@@ -471,7 +538,7 @@ export default function CheckoutPage() {
             <div className="bg-[var(--brand-white)] rounded-xl border border-[var(--brand-border)] p-6 sticky top-24">
               <h2 className="text-lg font-semibold text-[var(--brand-black)] mb-4">Ringkasan Pesanan</h2>
               <div className="space-y-4 mb-4">
-                {cartItems.map((item) => (
+                {checkoutItems.map((item) => (
                   <div key={item.variantId} className="flex gap-3">
                     <div className="w-16 h-16 bg-[var(--brand-gray)] rounded-lg overflow-hidden flex-shrink-0">
                       <img src={item.image ? getImageUrl(item.image) : "/placeholder.svg"} alt={item.name} className="w-full h-full object-cover" />
@@ -484,11 +551,57 @@ export default function CheckoutPage() {
                   </div>
                 ))}
               </div>
+              {/* Voucher Input */}
+              <div className="border-t border-[var(--brand-border)] pt-4 pb-2">
+                <label className="block text-xs font-semibold text-[var(--brand-black)] mb-1.5 uppercase tracking-wider">Voucher / Kode Promo</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Masukkan kode..."
+                    value={voucherInput}
+                    onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
+                    disabled={!!appliedVoucher}
+                    className="flex-1 px-3 py-1.5 border border-[var(--brand-border)] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-black)]"
+                  />
+                  {appliedVoucher ? (
+                    <MButton
+                      variant="outline"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600"
+                      onClick={handleRemoveVoucher}
+                    >
+                      Hapus
+                    </MButton>
+                  ) : (
+                    <MButton
+                      variant="primary"
+                      size="sm"
+                      disabled={isLoadingVoucher || !voucherInput.trim()}
+                      onClick={handleApplyVoucher}
+                    >
+                      {isLoadingVoucher ? "..." : "Pakai"}
+                    </MButton>
+                  )}
+                </div>
+                {voucherError && <p className="text-xs text-red-500 mt-1">{voucherError}</p>}
+                {appliedVoucher && (
+                  <p className="text-xs text-green-600 mt-1 font-medium">
+                    Voucher "{appliedVoucher.kode}" berhasil digunakan!
+                  </p>
+                )}
+              </div>
+
               <div className="border-t border-[var(--brand-border)] pt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-[var(--brand-muted)]">Subtotal</span>
                   <span className="font-medium">{formatPrice(subtotal)}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span>Diskon Voucher</span>
+                    <span>-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-[var(--brand-muted)]">Pengiriman</span>
                   <span className="font-medium">{formatPrice(shipping)}</span>

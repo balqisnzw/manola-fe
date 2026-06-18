@@ -24,6 +24,7 @@ import {
   FileText,
 } from "lucide-react"
 import { supplierService, type Supplier } from "@/lib/services/supplierService"
+import { authService } from "@/lib/services"
 import { AddSupplierModal } from "./components/AddSupplierModal"
 import { EditSupplierModal } from "./components/EditSupplierModal"
 import { DeleteSupplierModal } from "./components/DeleteSupplierModal"
@@ -34,23 +35,9 @@ import {
 } from "./components/types"
 import { toast } from "sonner"
 import { MLoader } from "@/components/manola/MLoader"
+import { adminNavItems } from "@/components/layouts/adminNav"
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
-
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -59,6 +46,7 @@ export default function AdminSupplierPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const currentUser = authService.getCurrentUser()
 
   // Filter
   const [searchQuery, setSearchQuery] = useState("")
@@ -251,13 +239,13 @@ export default function AdminSupplierPage() {
   // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div className="w-full sm:w-64">
           <MInput
-            placeholder="Cari supplier..."
+            placeholder="Cari Supplier"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={<Search className="w-4 h-4" />}

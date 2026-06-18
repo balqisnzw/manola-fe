@@ -8,30 +8,46 @@ import { MInput } from "@/components/manola/MInput"
 import { MDrawer } from "@/components/manola/MDrawer"
 import { MLoader } from "@/components/manola/MLoader"
 import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Sliders, Search } from "lucide-react"
-import { userService, authService } from "@/lib/services"
+import { userService, authService, orderService } from "@/lib/services"
 import type { UserData } from "@/lib/services/miscServices"
+import type { Order } from "@/lib/services/orderService"
+import { formatPrice } from "@/lib/utils"
 
-const navItems = [
-  { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  { label: "Stok Barang", href: "/owner/produk", icon: Package },
-  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
-  { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
-  { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
-  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
-]
+import { ownerNavItems as navItems } from "@/components/layouts/ownerNav"
 
 export default function OwnerPelangganPage() {
   const [customers, setCustomers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCustomer, setSelectedCustomer] = useState<UserData | null>(null)
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([])
+  const [loadingOrders, setLoadingOrders] = useState(false)
 
   const currentUser = authService.getCurrentUser()
 
   useEffect(() => {
     loadCustomers()
   }, [])
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      loadCustomerOrders(selectedCustomer.id)
+    } else {
+      setCustomerOrders([])
+    }
+  }, [selectedCustomer])
+
+  async function loadCustomerOrders(userId: number) {
+    setLoadingOrders(true)
+    try {
+      const data = await orderService.getAll({ userId })
+      setCustomerOrders(data)
+    } catch (err) {
+      console.error("Failed to load customer orders:", err)
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
 
   async function loadCustomers() {
     setLoading(true)
@@ -119,7 +135,11 @@ export default function OwnerPelangganPage() {
                 <p className="text-sm text-[#6B7280]">{selectedCustomer.email}</p>
               </div>
             </div>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm mb-8">
+              <p>
+                <span className="text-[#6B7280]">No. Telepon:</span>{" "}
+                {selectedCustomer.no_telepon || "-"}
+              </p>
               <p>
                 <span className="text-[#6B7280]">Bergabung:</span>{" "}
                 {new Date(selectedCustomer.createdAt).toLocaleDateString("id-ID", {
@@ -129,6 +149,38 @@ export default function OwnerPelangganPage() {
                 })}
               </p>
             </div>
+
+            <h3 className="text-sm font-semibold text-[#0A0A0A] mb-4">Riwayat Pesanan</h3>
+            {loadingOrders ? (
+              <div className="flex justify-center p-4"><MLoader /></div>
+            ) : customerOrders.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">Belum ada riwayat pesanan.</p>
+            ) : (
+              <div className="space-y-3">
+                {customerOrders.map(order => {
+                  const computedStatus = order.payment?.status_pembayaran === "GAGAL" ? "DIBATALKAN" : order.status;
+                  return (
+                  <div key={order.id} className="border border-gray-100 rounded-lg p-3 text-sm flex flex-col gap-1">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-semibold">#{order.id}</span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(order.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="font-medium text-blue-600">{formatPrice(order.total_harga)}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        computedStatus === "SELESAI" ? "bg-green-100 text-green-700" :
+                        computedStatus === "DIBATALKAN" ? "bg-red-100 text-red-700" :
+                        "bg-amber-100 text-amber-700"
+                      }`}>
+                        {computedStatus}
+                      </span>
+                    </div>
+                  </div>
+                )})}
+              </div>
+            )}
           </div>
         )}
       </MDrawer>

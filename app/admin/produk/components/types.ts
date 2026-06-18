@@ -15,23 +15,33 @@ export interface VariantRow {
 
 /** State lengkap form tambah / edit produk */
 export interface ProductFormState {
+  sku: string
   name: string
   description: string
   price: string
+  promoPrice: string
   category: string
   categoryId: string
   supplierId: string
   variants: VariantRow[]
+  descriptionImage?: File | null
+  removeDescriptionImage?: boolean
+  removeImageIds?: number[]
 }
 
 export const DEFAULT_FORM: ProductFormState = {
+  sku: "",
   name: "",
   description: "",
   price: "",
+  promoPrice: "",
   category: "",
   categoryId: "",
   supplierId: "",
-  variants: [{ size: "M", color: "", stock: "" }],
+  variants: [{ size: "", color: "", stock: "" }],
+  descriptionImage: null,
+  removeDescriptionImage: false,
+  removeImageIds: [],
 }
 
 // ─── Helper ──────────────────────────────────────────────────────────────────
@@ -39,9 +49,9 @@ export const DEFAULT_FORM: ProductFormState = {
 /** Konversi baris-variant form ke payload API */
 export function toVariantPayload(rows: VariantRow[]): CreateVariantPayload[] {
   return rows
-    .filter((v) => v.size && v.stock)
+    .filter((v) => v.stock)
     .map((v) => ({
-      size: v.size,
+      size: v.size || "-",
       color: v.color || undefined,
       stock: parseInt(v.stock, 10),
     }))

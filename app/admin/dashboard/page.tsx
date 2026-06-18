@@ -11,20 +11,7 @@ import { MLoader } from "@/components/manola/MLoader"
 
 import { authService, analyticsService } from "@/lib/services"
 import type { DashboardData, LowStockItem } from "@/lib/services/analyticsService"
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
+import { adminNavItems } from "@/components/layouts/adminNav"
 
 // (LowStockItem is now imported from analyticsService)
 
@@ -52,6 +39,11 @@ export default function AdminDashboardPage() {
 
   const columns = [
     {
+      key: "sku",
+      label: "Kode Produk",
+      render: (item: LowStockItem) => <span className="text-[#6B7280] font-mono text-sm">{item.sku}</span>
+    },
+    {
       key: "name",
       label: "Nama Produk",
       render: (item: LowStockItem) => <span className="font-medium">{item.productName}</span> },
@@ -68,7 +60,7 @@ export default function AdminDashboardPage() {
   const hasLowStock = data && data.lowStockProducts.length > 0
 
   return (
-    <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Admin"} userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
       <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Dashboard</h1>
 
       {loading ? (

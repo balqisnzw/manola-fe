@@ -6,27 +6,14 @@ import { MCard } from "@/components/manola/MCard"
 import { MTable } from "@/components/manola/MTable"
 import { MButton } from "@/components/manola/MButton"
 import { MInput } from "@/components/manola/MInput"
-import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Search, Trash2, FolderTree, Tag, Image, FileText } from "lucide-react"
+import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSquare, Settings, Search, FolderTree, Tag, Image, FileText } from "lucide-react"
 import { AddRestockModal } from "./components/AddRestockModal"
-import { DeleteRestockModal } from "./components/DeleteRestockModal"
 import { stockService, type RestockItem } from "@/lib/services/restockService"
 import { productService, type Product } from "@/lib/services/productService"
 import { supplierService, type Supplier } from "@/lib/services/supplierService"
 import { EMPTY_RESTOCK_FORM, type RestockFormState } from "./components/types"
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
+import { authService } from "@/lib/services/authService"
+import { adminNavItems } from "@/components/layouts/adminNav"
 
 export default function AdminStokPage() {
   const [restocks, setRestocks] = useState<RestockItem[]>([])
@@ -35,14 +22,14 @@ export default function AdminStokPage() {
   const [loading, setLoading] = useState(true)
 
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedRestock, setSelectedRestock] = useState<RestockItem | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const [formData, setFormData] = useState<RestockFormState>(EMPTY_RESTOCK_FORM)
   const [searchQuery, setSearchQuery] = useState("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+
+  const currentUser = authService.getCurrentUser()
 
   useEffect(() => {
     fetchData()
@@ -70,33 +57,28 @@ export default function AdminStokPage() {
 
   const handleAdd = async () => {
     if (!formData.productVariantId || !formData.jumlah) return
+
+    if (formData.tipe === "KELUAR" && !formData.catatan?.trim()) {
+      alert("Catatan wajib diisi untuk koreksi barang keluar")
+      return
+    }
+
     setSubmitting(true)
     try {
       await stockService.create({
         productVariantId: Number(formData.productVariantId),
         jumlah: Number(formData.jumlah),
+        tipe: formData.tipe,
+        catatan: formData.tipe === "KELUAR" ? formData.catatan : undefined,
         supplierId: formData.supplierId ? Number(formData.supplierId) : undefined,
       })
       await fetchData()
       setShowAddModal(false)
       setFormData(EMPTY_RESTOCK_FORM)
-    } catch (err) {
+    } catch (err: any) {
       console.error("Gagal input restock:", err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!selectedRestock) return
-    setSubmitting(true)
-    try {
-      await stockService.delete(selectedRestock.id)
-      await fetchData()
-      setShowDeleteModal(false)
-      setSelectedRestock(null)
-    } catch (err) {
-      console.error("Gagal hapus restock:", err)
+      const msg = err?.response?.data?.message || err?.message || "Terjadi kesalahan"
+      alert(msg)
     } finally {
       setSubmitting(false)
     }
@@ -124,6 +106,13 @@ export default function AdminStokPage() {
         }),
     },
     {
+      key: "sku",
+      label: "Kode Produk",
+      render: (item: RestockItem) => (
+        <span className="text-sm text-[#6B7280] font-mono">{item.variant.product.sku || "-"}</span>
+      ),
+    },
+    {
       key: "product",
       label: "Produk",
       render: (item: RestockItem) => (
@@ -142,9 +131,11 @@ export default function AdminStokPage() {
     },
     {
       key: "jumlah",
-      label: "Jumlah Masuk",
+      label: "Perubahan",
       render: (item: RestockItem) => (
-        <span className="text-green-600 font-medium">+{item.jumlah}</span>
+        <span className={`font-medium ${item.tipe === "MASUK" ? "text-green-600" : "text-red-600"}`}>
+          {item.tipe === "MASUK" ? "+" : "-"}{item.jumlah}
+        </span>
       ),
     },
     {
@@ -153,21 +144,16 @@ export default function AdminStokPage() {
       render: (item: RestockItem) => item.supplier?.nama ?? "-",
     },
     {
-      key: "actions",
-      label: "",
+      key: "catatan",
+      label: "Catatan",
       render: (item: RestockItem) => (
-        <button
-          onClick={() => { setSelectedRestock(item); setShowDeleteModal(true) }}
-          className="p-1.5 text-[#6B7280] hover:text-red-500 transition"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <span className="text-sm text-gray-500">{item.catatan || "-"}</span>
       ),
     },
   ]
 
   return (
-    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-[#0A0A0A]">Stok</h1>
         <MButton variant="primary" onClick={() => setShowAddModal(true)}>
@@ -215,14 +201,6 @@ export default function AdminStokPage() {
         products={products}
         suppliers={suppliers}
         onSubmit={handleAdd}
-        submitting={submitting}
-      />
-
-      <DeleteRestockModal
-        isOpen={showDeleteModal}
-        onClose={() => { setShowDeleteModal(false); setSelectedRestock(null) }}
-        restock={selectedRestock}
-        onConfirm={handleDelete}
         submitting={submitting}
       />
     </SidebarLayout>

@@ -22,13 +22,32 @@ const navItems = [
 ]
 
 export default function PackagingPengaturanPage() {
+  const currentUser = authService.getCurrentUser()
+
+  const [nama, setNama] = useState(currentUser?.nama ?? "")
+  const [email, setEmail] = useState(currentUser?.email ?? "")
+  const [noTelepon, setNoTelepon] = useState(currentUser?.no_telepon ?? "")
+  const [showProfileSuccess, setShowProfileSuccess] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const currentUser = authService.getCurrentUser()
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setProfileLoading(true)
+    try {
+      await authService.updateProfile({ nama, email, no_telepon: noTelepon })
+      setShowProfileSuccess(true)
+      setTimeout(() => setShowProfileSuccess(false), 3000)
+    } catch (err: any) {
+      alert("Gagal memperbarui profil: " + (err.message || "Terjadi kesalahan"))
+    } finally {
+      setProfileLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,8 +92,45 @@ export default function PackagingPengaturanPage() {
       <div className="p-8">
         <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Pengaturan</h1>
 
-        <MCard className="max-w-md">
-          <h2 className="font-semibold text-[#0A0A0A] mb-4">Ganti Password</h2>
+        <div className="space-y-6 max-w-md">
+          <MCard>
+            <h2 className="font-semibold text-[#0A0A0A] mb-4">Profil Akun</h2>
+            
+            {showProfileSuccess && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span className="text-sm text-green-700">Profil berhasil diperbarui</span>
+              </div>
+            )}
+
+            <form onSubmit={handleProfileSubmit} className="space-y-4">
+              <MInput
+                label="Nama Lengkap"
+                value={nama}
+                onChange={(e) => setNama(e.target.value)}
+                required
+              />
+              <MInput
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <MInput
+                label="No. Telepon"
+                type="tel"
+                value={noTelepon}
+                onChange={(e) => setNoTelepon(e.target.value)}
+              />
+              <MButton type="submit" variant="primary" className="mt-4" disabled={profileLoading}>
+                {profileLoading ? "Menyimpan..." : "Simpan Profil"}
+              </MButton>
+            </form>
+          </MCard>
+
+          <MCard>
+            <h2 className="font-semibold text-[#0A0A0A] mb-4">Ganti Password</h2>
 
           {showSuccess && (
             <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
@@ -112,7 +168,8 @@ export default function PackagingPengaturanPage() {
               {loading ? "Menyimpan..." : "Simpan Password"}
             </MButton>
           </form>
-        </MCard>
+          </MCard>
+        </div>
       </div>
     </NavbarLayout>
   )

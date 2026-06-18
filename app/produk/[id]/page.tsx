@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Minus, Plus, ShoppingCart, Heart, Star, Truck, Shield, RefreshCw, Loader2 } from "lucide-react";
+import { ArrowLeft, Minus, Plus, ShoppingCart, Heart, Star, Truck, Shield, RefreshCw, Loader2, User, X, Sparkles, Award } from "lucide-react";
 import { MButton } from "@/components/manola/MButton";
 import { MBadge } from "@/components/manola/MBadge";
 import { authService, type User as AuthUser } from "@/lib/services/authService";
 import { productService, type Product, type ProductVariant } from "@/lib/services/productService";
-import { reviewService, type Review } from "@/lib/services/miscServices";
+import { reviewService, wishlistService, type Review } from "@/lib/services/miscServices";
 import { useCart } from "@/lib/CartContext";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
@@ -29,11 +29,13 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  // Size Calculator state
   const [showSizeCalc, setShowSizeCalc] = useState(false);
   const [sizeCalcBB, setSizeCalcBB] = useState("");
   const [sizeCalcTB, setSizeCalcTB] = useState("");
   const [sizeResult, setSizeResult] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<"detail" | "panduan">("detail");
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -42,6 +44,9 @@ export default function ProductDetailPage() {
       console.error("Error fetching current user:", err);
     }
   }, []);
+
+  const [wishlistId, setWishlistId] = useState<number | null>(null);
+  const isInWishlist = wishlistId !== null;
 
   useEffect(() => {
     const loadData = async () => {
@@ -53,6 +58,13 @@ export default function ProductDetailPage() {
         ]);
         setProduct(productData);
         setReviews(reviewData);
+
+        // Check if in wishlist if user is logged in
+        if (authService.getCurrentUser()) {
+          const wishlists = await wishlistService.getAll();
+          const found = wishlists.find((w) => w.productId === productId);
+          setWishlistId(found ? found.id : null);
+        }
       } catch (err) {
         console.error("Error fetching product:", err);
       } finally {
@@ -65,24 +77,27 @@ export default function ProductDetailPage() {
   const { cartCount, addItem } = useCart();
 
   // Derive unique sizes and colors from variants
-  const sizes = Array.from(new Set(product?.variants?.map((v) => v.size) ?? []));
+  const allSizes = Array.from(new Set(product?.variants?.map((v) => v.size) ?? []));
+  const sizes = allSizes.filter((s) => s !== "-"); // Sembunyikan "-" dari tampilan user
+  const hasRealSizes = sizes.length > 0;
+  const effectiveSize = hasRealSizes ? selectedSize : "-";
   const availableColors = product?.variants
-    ?.filter((v) => !selectedSize || v.size === selectedSize)
+    ?.filter((v) => !effectiveSize || v.size === effectiveSize)
     .map((v) => v.color)
     .filter(Boolean) as string[] ?? [];
   const uniqueColors = Array.from(new Set(availableColors));
 
   // Find the selected variant
   const selectedVariant: ProductVariant | undefined = product?.variants?.find(
-    (v) => v.size === selectedSize && (v.color === selectedColor || (!v.color && !selectedColor))
+    (v) => v.size === effectiveSize && (v.color === selectedColor || (!v.color && !selectedColor))
   );
 
   const totalStock = product?.variants?.reduce((sum, v) => sum + v.stock, 0) ?? 0;
   const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : "0";
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!product) return;
-    if (!selectedSize) {
+    if (hasRealSizes && !selectedSize) {
       toast.error("Pilih ukuran terlebih dahulu");
       return;
     }
@@ -98,18 +113,80 @@ export default function ProductDetailPage() {
       toast.error(`Stok tidak cukup. Tersedia: ${selectedVariant.stock}`);
       return;
     }
-    addItem({
+    
+    try {
+      await addItem(selectedVariant.id, quantity);
+    } catch (e) {
+      // Error handled by CartContext toast
+    }
+  };
+
+  const handleBuyNow = () => {
+    if (!product) return;
+    if (hasRealSizes && !selectedSize) {
+      toast.error("Pilih ukuran terlebih dahulu");
+      return;
+    }
+    if (uniqueColors.length > 0 && !selectedColor) {
+      toast.error("Pilih warna terlebih dahulu");
+      return;
+    }
+    if (!selectedVariant) {
+      toast.error("Varian tidak ditemukan");
+      return;
+    }
+    if (selectedVariant.stock < quantity) {
+      toast.error(`Stok tidak cukup. Tersedia: ${selectedVariant.stock}`);
+      return;
+    }
+    if (!currentUser) {
+      toast.error("Silakan login terlebih dahulu untuk checkout");
+      router.push("/login");
+      return;
+    }
+    const buyNowItem = {
       variantId: selectedVariant.id,
       productId: product.id,
       name: product.name,
-      price: product.price,
+      price: product.promoPrice ?? product.price,
       image: product.images?.[0]?.url ?? "",
-      size: selectedSize,
+      size: hasRealSizes ? (selectedSize ?? "") : "",
       color: selectedColor ?? "-",
       quantity,
       stock: selectedVariant.stock,
-    });
-    toast.success(`${product.name} (${selectedSize}${selectedColor ? `, ${selectedColor}` : ""}) ditambahkan ke keranjang`);
+    };
+    sessionStorage.setItem("buyNowItem", JSON.stringify([buyNowItem]));
+    router.push("/checkout?buy_now=true");
+  };
+
+  const [addingToWishlist, setAddingToWishlist] = useState(false);
+  const handleAddToWishlist = async () => {
+    if (!currentUser) {
+      toast.error("Masuk untuk menyimpan ke wishlist");
+      router.push("/login");
+      return;
+    }
+    try {
+      setAddingToWishlist(true);
+      if (wishlistId !== null) {
+        await wishlistService.remove(wishlistId);
+        setWishlistId(null);
+        toast.success(`${product!.name} dihapus dari wishlist`);
+      } else {
+        const added = await wishlistService.add(product!.id);
+        setWishlistId(added.id);
+        toast.success(`${product!.name} ditambahkan ke wishlist`);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Gagal mengupdate wishlist";
+      if (msg.toLowerCase().includes("sudah ada") && wishlistId === null) {
+        toast.error("Produk ini sudah ada di wishlist kamu. Muat ulang halaman.");
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setAddingToWishlist(false);
+    }
   };
 
   if (loading) {
@@ -140,17 +217,42 @@ export default function ProductDetailPage() {
               <span className="hidden sm:inline">Kembali</span>
             </button>
             <Link href="/" className="text-2xl font-bold text-[var(--brand-black)]">MANOLA</Link>
-            {currentUser?.role === "USER" && (
-              <div className="flex items-center gap-4">
-                <NotificationBell />
-                <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
-                  <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">{cartCount}</span>
-                  )}
+            <div className="flex items-center gap-4">
+              {currentUser?.role === "USER" && (
+                <>
+                  <NotificationBell />
+                  <Link href="/cart" className="relative p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors">
+                    <ShoppingCart className="w-5 h-5 text-[var(--brand-black)]" />
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-[var(--brand-black)] text-[var(--brand-white)] text-xs font-medium rounded-full flex items-center justify-center">{cartCount}</span>
+                    )}
+                  </Link>
+                </>
+              )}
+              {currentUser ? (
+                <Link
+                  href={
+                    {
+                      OWNER: "/owner/dashboard",
+                      ADMIN: "/admin/dashboard",
+                      KASIR: "/kasir/transaksi",
+                      PACKAGING: "/packaging/pesanan",
+                      USER: "/profil",
+                    }[currentUser.role] || "/profil"
+                  }
+                  className="p-2 hover:bg-[var(--brand-gray)] rounded-lg transition-colors"
+                >
+                  <User className="w-5 h-5 text-[var(--brand-black)]" />
                 </Link>
-              </div>
-            )}
+              ) : (
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-sm font-medium text-[var(--brand-black)] hover:bg-[var(--brand-gray)] rounded-lg transition-colors border border-[var(--brand-border)]"
+                >
+                  Masuk
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -176,9 +278,8 @@ export default function ProductDetailPage() {
                   <button
                     key={img.id}
                     onClick={() => setSelectedImage(idx)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === idx ? "border-[var(--brand-black)]" : "border-[var(--brand-border)]"
-                    }`}
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === idx ? "border-[var(--brand-black)]" : "border-[var(--brand-border)]"
+                      }`}
                   >
                     <img src={getImageUrl(img.url)} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -206,13 +307,18 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-[var(--brand-black)]">{formatPrice(product.price)}</span>
+              {product.promoPrice ? (
+                <>
+                  <span className="text-3xl font-bold text-red-500">{formatPrice(product.promoPrice)}</span>
+                  <span className="text-lg text-[var(--brand-muted)] line-through">{formatPrice(product.price)}</span>
+                </>
+              ) : (
+                <span className="text-3xl font-bold text-[var(--brand-black)]">{formatPrice(product.price)}</span>
+              )}
             </div>
 
-            <p className="text-[var(--brand-muted)] leading-relaxed">{product.description}</p>
-
             {/* Size Selection */}
-            {sizes.length > 0 && (
+            {hasRealSizes && (
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <p className="text-sm font-medium text-[var(--brand-black)]">Ukuran</p>
@@ -231,11 +337,10 @@ export default function ProductDetailPage() {
                         setSelectedSize(size);
                         setSelectedColor(null);
                       }}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                        selectedSize === size
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selectedSize === size
                           ? "border-[var(--brand-black)] bg-[var(--brand-black)] text-[var(--brand-white)]"
                           : "border-[var(--brand-border)] hover:border-[var(--brand-black)]"
-                      }`}
+                        }`}
                     >
                       {size}
                     </button>
@@ -255,11 +360,10 @@ export default function ProductDetailPage() {
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
-                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                        selectedColor === color
+                      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${selectedColor === color
                           ? "border-[var(--brand-black)] bg-[var(--brand-black)] text-[var(--brand-white)]"
                           : "border-[var(--brand-border)] hover:border-[var(--brand-black)]"
-                      }`}
+                        }`}
                     >
                       {color}
                     </button>
@@ -275,9 +379,55 @@ export default function ProductDetailPage() {
               </p>
             )}
 
-            {/* Quantity & Add to Cart */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-[var(--brand-border)] rounded-lg">
+            {/* Tabs Detail & Panduan */}
+            <div className="border-b border-[var(--brand-border)] mb-4">
+              <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                <button
+                  onClick={() => setActiveTab("detail")}
+                  className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "detail"
+                      ? "border-[var(--brand-black)] text-[var(--brand-black)]"
+                      : "border-transparent text-[var(--brand-muted)] hover:text-[var(--brand-black)] hover:border-[var(--brand-border)]"
+                    }`}
+                >
+                  Deskripsi Produk
+                </button>
+                {product.descriptionImageUrl && (
+                  <button
+                    onClick={() => setActiveTab("panduan")}
+                    className={`whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === "panduan"
+                        ? "border-[var(--brand-black)] text-[var(--brand-black)]"
+                        : "border-transparent text-[var(--brand-muted)] hover:text-[var(--brand-black)] hover:border-[var(--brand-border)]"
+                      }`}
+                  >
+                    Tentang Produk
+                  </button>
+                )}
+              </nav>
+            </div>
+
+            <div className="mb-6">
+              {activeTab === "detail" && (
+                <p className="text-[var(--brand-muted)] leading-relaxed whitespace-pre-line text-sm">
+                  {product.description || "Tidak ada deskripsi."}
+                </p>
+              )}
+              {activeTab === "panduan" && product.descriptionImageUrl && (
+                <div
+                  className="rounded-xl overflow-hidden border border-[var(--brand-border)] max-w-[250px] bg-[var(--brand-white)] cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setPreviewImage(getImageUrl(product.descriptionImageUrl!))}
+                >
+                  <img
+                    src={getImageUrl(product.descriptionImageUrl)}
+                    alt="Panduan Produk"
+                    className="w-full h-auto object-contain"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Quantity & Add to Cart & Wishlist */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              <div className="flex items-center border border-[var(--brand-border)] rounded-lg w-max">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-3 hover:bg-[var(--brand-gray)] transition-colors">
                   <Minus className="w-4 h-4" />
                 </button>
@@ -286,27 +436,49 @@ export default function ProductDetailPage() {
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
-              {currentUser?.role === "USER" && (
-                <MButton className="flex-1" size="lg" onClick={handleAddToCart} disabled={totalStock <= 0}>
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  {totalStock <= 0 ? "Stok Habis" : "Tambah ke Keranjang"}
+              <div className="flex flex-1 items-center gap-2">
+                {!currentUser ? (
+                  <MButton className="flex-1" size="lg" onClick={() => router.push("/login")}>
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    Masuk untuk Membeli
+                  </MButton>
+                ) : currentUser?.role === "USER" ? (
+                  <>
+                    <MButton variant="outline" className="flex-1 border-[var(--brand-black)] text-[var(--brand-black)] hover:bg-[var(--brand-gray)]" size="lg" onClick={handleAddToCart} disabled={totalStock <= 0}>
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      {totalStock <= 0 ? "Habis" : "Keranjang"}
+                    </MButton>
+                    <MButton className="flex-1" size="lg" onClick={handleBuyNow} disabled={totalStock <= 0}>
+                      {totalStock <= 0 ? "Stok Habis" : "Beli Sekarang"}
+                    </MButton>
+                  </>
+                ) : null}
+
+                <MButton
+                  variant="outline"
+                  size="lg"
+                  className="px-4 shrink-0 border-[var(--brand-border)] hover:bg-gray-50"
+                  onClick={handleAddToWishlist}
+                  disabled={addingToWishlist}
+                >
+                  {addingToWishlist ? <Loader2 className="w-5 h-5 animate-spin" /> : <Heart className={`w-5 h-5 transition-colors ${isInWishlist ? "fill-red-500 text-red-500" : ""}`} />}
                 </MButton>
-              )}
+              </div>
             </div>
 
             {/* Features */}
-            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[var(--brand-border)]">
+            <div className="grid grid-cols-3 gap-4 py-6 border-y border-[var(--brand-border)] mt-6">
               <div className="text-center">
-                <Truck className="w-6 h-6 mx-auto mb-2 text-[var(--brand-muted)]" />
-                <p className="text-xs text-[var(--brand-muted)]">Free Ongkir</p>
+                <Sparkles className="w-6 h-6 mx-auto mb-2 text-[var(--brand-muted)]" />
+                <p className="text-xs text-[var(--brand-muted)]">Bahan Premium</p>
               </div>
               <div className="text-center">
-                <Shield className="w-6 h-6 mx-auto mb-2 text-[var(--brand-muted)]" />
-                <p className="text-xs text-[var(--brand-muted)]">Garansi Asli</p>
+                <Heart className="w-6 h-6 mx-auto mb-2 text-[var(--brand-muted)]" />
+                <p className="text-xs text-[var(--brand-muted)]">Local Pride</p>
               </div>
               <div className="text-center">
-                <RefreshCw className="w-6 h-6 mx-auto mb-2 text-[var(--brand-muted)]" />
-                <p className="text-xs text-[var(--brand-muted)]">30 Hari Return</p>
+                <Award className="w-6 h-6 mx-auto mb-2 text-[var(--brand-muted)]" />
+                <p className="text-xs text-[var(--brand-muted)]">Berkualitas</p>
               </div>
             </div>
           </div>
@@ -346,7 +518,7 @@ export default function ProductDetailPage() {
                   {review.images && review.images.length > 0 && (
                     <div className="flex gap-2 mt-2">
                       {review.images.map((img) => (
-                        <div key={img.id} className="w-16 h-16 rounded-lg border border-[var(--brand-border)] overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.open(getImageUrl(img.url), '_blank')}>
+                        <div key={img.id} className="w-16 h-16 rounded-lg border border-[var(--brand-border)] overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setPreviewImage(getImageUrl(img.url))}>
                           <img src={getImageUrl(img.url)} alt="Review" className="w-full h-full object-cover" />
                         </div>
                       ))}
@@ -433,6 +605,25 @@ export default function ProductDetailPage() {
             >
               Tutup
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-4xl w-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-10 right-0 sm:-right-10 text-white hover:text-gray-300 transition-colors p-2"
+            >
+              <X className="w-8 h-8" />
+            </button>
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            />
           </div>
         </div>
       )}

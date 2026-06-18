@@ -14,23 +14,11 @@ import { LayoutDashboard, ShoppingBag, Archive, Truck, ClipboardList, MessageSqu
 import { orderService, authService } from "@/lib/services"
 import type { Order } from "@/lib/services/orderService"
 import { formatPrice } from "@/lib/utils"
+import { adminNavItems } from "@/components/layouts/adminNav"
 
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
-
-function getStatusVariant(status: string): "warning" | "info" | "success" | "gray" {
-  switch (status) {
+function getStatusVariant(order: Order): "warning" | "info" | "success" | "gray" | "danger" {
+  if (order.payment?.status_pembayaran === "GAGAL") return "danger"
+  switch (order.status) {
     case "DIPROSES": return "warning"
     case "DIKEMAS": return "warning"
     case "DIKIRIM": return "info"
@@ -39,18 +27,19 @@ function getStatusVariant(status: string): "warning" | "info" | "success" | "gra
   }
 }
 
-function getStatusLabel(status: string) {
-  switch (status) {
+function getStatusLabel(order: Order) {
+  if (order.payment?.status_pembayaran === "GAGAL") return "Dibatalkan"
+  switch (order.status) {
     case "DIPROSES": return "Diproses"
     case "DIKEMAS": return "Dikemas"
     case "DIKIRIM": return "Dikirim"
     case "SELESAI": return "Selesai"
-    default: return status
+    default: return order.status
   }
 }
 
-const steps = ["DIPROSES", "DIKEMAS", "DIKIRIM", "SELESAI"]
-const stepLabels = ["Diproses", "Dikemas", "Dikirim", "Selesai"]
+const steps = ["DIKEMAS", "DIKIRIM", "SELESAI"]
+const stepLabels = ["Dikemas", "Dikirim", "Selesai"]
 
 export default function AdminPesananPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -79,8 +68,10 @@ export default function AdminPesananPage() {
   }
 
   const filteredOrders = orders.filter((order) => {
+    const isDibatalkan = order.payment?.status_pembayaran === "GAGAL"
+    const computedStatus = isDibatalkan ? "DIBATALKAN" : order.status
     const matchTab = activeTab === "semua" || order.jenis.toLowerCase() === activeTab
-    const matchStatus = !filterStatus || order.status === filterStatus
+    const matchStatus = !filterStatus || computedStatus === filterStatus
     const matchSearch = String(order.id).includes(searchQuery) ||
       (order.user?.nama ?? "").toLowerCase().includes(searchQuery.toLowerCase())
     return matchTab && matchStatus && matchSearch
@@ -111,8 +102,8 @@ export default function AdminPesananPage() {
       key: "status",
       label: "Status",
       render: (item: Order) => (
-        <MBadge variant={getStatusVariant(item.status)}>
-          {getStatusLabel(item.status)}
+        <MBadge variant={getStatusVariant(item)}>
+          {getStatusLabel(item)}
         </MBadge>
       ),
     },
@@ -130,7 +121,7 @@ export default function AdminPesananPage() {
   const getStepIndex = (status: string) => steps.indexOf(status)
 
   return (
-    <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Admin"} userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
       {/* Filter Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -159,6 +150,7 @@ export default function AdminPesananPage() {
             <option value="DIKEMAS">Dikemas</option>
             <option value="DIKIRIM">Dikirim</option>
             <option value="SELESAI">Selesai</option>
+            <option value="DIBATALKAN">Dibatalkan</option>
           </select>
         </div>
         <div className="w-full lg:w-64">
@@ -211,15 +203,28 @@ export default function AdminPesananPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedOrder.items?.map((item) => (
-                    <tr key={item.id} className="border-t border-[#E5E7EB]">
-                      <td className="py-2">{item.variant?.product?.name ?? "-"}</td>
-                      <td className="py-2">{item.variant?.size ?? "-"}</td>
-                      <td className="py-2">{item.variant?.color ?? "-"}</td>
-                      <td className="py-2">{item.jumlah}</td>
-                      <td className="py-2 text-right">{formatPrice(item.harga_satuan * item.jumlah)}</td>
-                    </tr>
-                  ))}
+                  {selectedOrder.items?.map((item) => {
+                    const normalPrice = item.variant?.product?.price;
+                    const isDiscounted = normalPrice && item.harga_satuan < normalPrice;
+                    
+                    return (
+                      <tr key={item.id} className="border-t border-[#E5E7EB]">
+                        <td className="py-2">
+                          <p>{item.variant?.product?.name ?? "Produk (Dihapus)"}</p>
+                          {isDiscounted && (
+                            <p className="text-[10px] mt-0.5 text-[#6B7280]">
+                              Harga promo: <span className="text-green-600 font-medium">{formatPrice(item.harga_satuan)}</span> 
+                              {' '}(normal: <span className="line-through">{formatPrice(normalPrice)}</span>)
+                            </p>
+                          )}
+                        </td>
+                        <td className="py-2">{item.variant?.size ?? "-"}</td>
+                        <td className="py-2">{item.variant?.color ?? "-"}</td>
+                        <td className="py-2">{item.jumlah}</td>
+                        <td className="py-2 text-right">{formatPrice(item.harga_satuan * item.jumlah)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -227,8 +232,19 @@ export default function AdminPesananPage() {
             {/* Shipping Address (Online only) */}
             {selectedOrder.jenis === "ONLINE" && selectedOrder.alamat_pengiriman && (
               <div className="mb-6">
-                <h3 className="text-sm font-semibold text-[#0A0A0A] mb-3">Alamat Pengiriman</h3>
-                <p className="text-sm text-[#6B7280]">{selectedOrder.alamat_pengiriman}</p>
+                <h3 className="text-sm font-semibold text-[#0A0A0A] mb-3">Pengiriman</h3>
+                <div className="text-sm text-[#6B7280]">
+                  <p className="font-medium text-[#0A0A0A] mb-1">
+                    Kurir: <span className="uppercase">{selectedOrder.ekspedisi || "-"}</span>
+                  </p>
+                  {selectedOrder.resi && (
+                    <p className="mb-2">
+                      Resi: <span className="font-mono text-[#0A0A0A] bg-gray-100 px-1 py-0.5 rounded">{selectedOrder.resi}</span>
+                    </p>
+                  )}
+                  <p className="mt-2 text-xs uppercase tracking-wider font-semibold text-[#0A0A0A]">Alamat:</p>
+                  <p className="mt-1">{selectedOrder.alamat_pengiriman}</p>
+                </div>
               </div>
             )}
 
@@ -236,7 +252,11 @@ export default function AdminPesananPage() {
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-[#0A0A0A] mb-3">Pembayaran</h3>
               <div className="flex items-center justify-between text-sm">
-                <MBadge variant="gray">{selectedOrder.payment?.metode_pembayaran ?? "-"}</MBadge>
+                <MBadge variant="gray">
+                  {selectedOrder.payment?.metode_pembayaran === "MIDTRANS" && (selectedOrder.payment as any).midtrans_payment_type
+                    ? (selectedOrder.payment as any).midtrans_payment_type
+                    : (selectedOrder.payment?.metode_pembayaran ?? "-")}
+                </MBadge>
                 <span className="font-semibold">{formatPrice(selectedOrder.total_harga)}</span>
               </div>
             </div>
@@ -244,42 +264,59 @@ export default function AdminPesananPage() {
             {/* Progress Stepper */}
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-[#0A0A0A] mb-4">Status Pesanan</h3>
-              <div className="flex items-center">
-                {steps.map((step, idx) => {
-                  const currentStep = getStepIndex(selectedOrder.status)
-                  const isCompleted = idx < currentStep
-                  const isActive = idx === currentStep
-                  const isUpcoming = idx > currentStep
-
-                  return (
-                    <div key={step} className="flex items-center flex-1">
-                      <div className="flex flex-col items-center">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                            isCompleted
-                              ? "bg-green-500 text-white"
-                              : isActive
-                              ? "bg-[#0A0A0A] text-white"
-                              : "border-2 border-[#E5E7EB] bg-white text-[#6B7280]"
-                          }`}
-                        >
-                          {isCompleted ? <Check className="w-4 h-4" /> : idx + 1}
-                        </div>
-                        <span className={`text-xs mt-2 ${isUpcoming ? "text-[#6B7280]" : "text-[#0A0A0A]"}`}>
-                          {stepLabels[idx]}
-                        </span>
-                      </div>
-                      {idx < steps.length - 1 && (
-                        <div
-                          className={`flex-1 h-0.5 mx-2 ${
-                            idx < currentStep ? "bg-green-500" : "bg-[#E5E7EB]"
-                          }`}
-                        />
-                      )}
+              {selectedOrder.payment?.status_pembayaran === "GAGAL" ? (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+                  <p className="text-red-600 font-semibold text-sm">Pesanan Dibatalkan</p>
+                  <p className="text-red-500 text-xs mt-1">Pembayaran kedaluwarsa atau dibatalkan oleh pengguna.</p>
+                </div>
+              ) : selectedOrder.jenis === "OFFLINE" ? (
+                <div className="flex items-center justify-center p-4 bg-[#F9F9F9] border border-[#E5E7EB] rounded-lg">
+                  <div className="flex flex-col items-center">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500 text-white mb-2 shadow-sm">
+                      <Check className="w-5 h-5" />
                     </div>
-                  )
-                })}
-              </div>
+                    <p className="text-[#0A0A0A] font-medium text-sm">Selesai</p>
+                    <p className="text-[#6B7280] text-xs mt-0.5">Diserahkan langsung di kasir.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  {steps.map((step, idx) => {
+                    const currentStep = getStepIndex(selectedOrder.status)
+                    const isCompleted = idx < currentStep
+                    const isActive = idx === currentStep
+                    const isUpcoming = idx > currentStep
+
+                    return (
+                      <div key={step} className="flex items-center flex-1">
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                              isCompleted
+                                ? "bg-green-500 text-white"
+                                : isActive
+                                ? "bg-[#0A0A0A] text-white"
+                                : "border-2 border-[#E5E7EB] bg-white text-[#6B7280]"
+                            }`}
+                          >
+                            {isCompleted ? <Check className="w-4 h-4" /> : idx + 1}
+                          </div>
+                          <span className={`text-xs mt-2 ${isUpcoming ? "text-[#6B7280]" : "text-[#0A0A0A]"}`}>
+                            {stepLabels[idx]}
+                          </span>
+                        </div>
+                        {idx < steps.length - 1 && (
+                          <div
+                            className={`flex-1 h-0.5 mx-2 ${
+                              idx < currentStep ? "bg-green-500" : "bg-[#E5E7EB]"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </>
         )}

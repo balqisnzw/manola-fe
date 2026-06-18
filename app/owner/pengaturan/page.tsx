@@ -8,24 +8,36 @@ import { MButton } from "@/components/manola/MButton"
 import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Sliders, CheckCircle } from "lucide-react"
 import { authService } from "@/lib/services"
 
-const navItems = [
-  { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  { label: "Stok Barang", href: "/owner/produk", icon: Package },
-  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
-  { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
-  { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
-  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
-]
+import { ownerNavItems as navItems } from "@/components/layouts/ownerNav"
 
 export default function OwnerPengaturanPage() {
+  const currentUser = authService.getCurrentUser()
+
+  const [nama, setNama] = useState(currentUser?.nama ?? "")
+  const [email, setEmail] = useState(currentUser?.email ?? "")
+  const [noTelepon, setNoTelepon] = useState(currentUser?.no_telepon ?? "")
+  const [showProfileSuccess, setShowProfileSuccess] = useState(false)
+  const [profileLoading, setProfileLoading] = useState(false)
+
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const currentUser = authService.getCurrentUser()
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setProfileLoading(true)
+    try {
+      await authService.updateProfile({ nama, email, no_telepon: noTelepon })
+      setShowProfileSuccess(true)
+      setTimeout(() => setShowProfileSuccess(false), 3000)
+    } catch (err: any) {
+      alert("Gagal memperbarui profil: " + (err.message || "Terjadi kesalahan"))
+    } finally {
+      setProfileLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,7 +64,44 @@ export default function OwnerPengaturanPage() {
     <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Owner"} userRole="Owner">
       <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Pengaturan</h1>
 
-      <MCard className="max-w-md">
+      <div className="space-y-6 max-w-md">
+        <MCard>
+          <h2 className="font-semibold text-[#0A0A0A] mb-4">Profil Akun</h2>
+          
+          {showProfileSuccess && (
+            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg mb-4">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span className="text-sm text-green-700">Profil berhasil diperbarui</span>
+            </div>
+          )}
+
+          <form onSubmit={handleProfileSubmit} className="space-y-4">
+            <MInput
+              label="Nama Lengkap"
+              value={nama}
+              onChange={(e) => setNama(e.target.value)}
+              required
+            />
+            <MInput
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <MInput
+              label="No. Telepon"
+              type="tel"
+              value={noTelepon}
+              onChange={(e) => setNoTelepon(e.target.value)}
+            />
+            <MButton type="submit" variant="primary" className="mt-4" disabled={profileLoading}>
+              {profileLoading ? "Menyimpan..." : "Simpan Profil"}
+            </MButton>
+          </form>
+        </MCard>
+
+        <MCard>
         <h2 className="font-semibold text-[#0A0A0A] mb-4">Ganti Password</h2>
 
         {showSuccess && (
@@ -91,7 +140,8 @@ export default function OwnerPengaturanPage() {
             {loading ? "Menyimpan..." : "Simpan Password"}
           </MButton>
         </form>
-      </MCard>
+        </MCard>
+      </div>
     </SidebarLayout>
   )
 }

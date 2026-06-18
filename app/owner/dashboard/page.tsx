@@ -12,15 +12,7 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from "recharts"
 import { authService, analyticsService } from "@/lib/services"
 import type { DashboardData } from "@/lib/services/analyticsService"
 
-const navItems = [
-  { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  { label: "Stok Barang", href: "/owner/produk", icon: Package },
-  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
-  { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
-  { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
-  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
-]
+import { ownerNavItems as navItems } from "@/components/layouts/ownerNav"
 
 function formatRupiah(value: number) {
   return `Rp ${value.toLocaleString("id-ID")}`

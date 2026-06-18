@@ -72,7 +72,9 @@ export default function KasirShiftPage() {
     setLoadingHistory(true)
     try {
       const data = await shiftService.getAll()
-      setShifts(data)
+      // Hanya tampilkan shift milik kasir ini sendiri jika bukan admin/owner
+      const filteredData = isManagement ? data : data.filter((s) => s.kasirId === user?.id)
+      setShifts(filteredData)
     } catch (err) {
       console.error("Failed to load shift history:", err)
     } finally {
@@ -158,9 +160,8 @@ export default function KasirShiftPage() {
         {/* Title */}
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Manajemen Shift & Petty Cash</h1>
 
-        {/* Tab Controls (only show history if Admin or Owner) */}
-        {isManagement && (
-          <div className="flex gap-6 mb-6 border-b border-gray-200">
+        {/* Tab Controls */}
+        <div className="flex gap-6 mb-6 border-b border-gray-200">
             <button
               onClick={() => setActiveTab("current")}
               className={`pb-3 text-sm font-medium transition ${
@@ -185,7 +186,6 @@ export default function KasirShiftPage() {
               Riwayat Shift (Audit)
             </button>
           </div>
-        )}
 
         {activeTab === "current" ? (
           <div>
@@ -202,7 +202,7 @@ export default function KasirShiftPage() {
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Uang Kas Aktual (Prediksi)</p>
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">JUMLAH UANG FISIK</p>
                           <p className="text-2xl font-bold text-gray-900 mt-1">{formatRupiah(getExpectedCash())}</p>
                         </div>
                         <div className="p-2.5 bg-green-50 text-green-600 rounded-lg">
@@ -403,7 +403,7 @@ export default function KasirShiftPage() {
             label="Keterangan Pengeluaran"
             type="text"
             required
-            placeholder="Contoh: Bayar laundry kantong plastik belanja"
+            placeholder="Contoh: Beli plastik belanja"
             value={pettyKeterangan}
             onChange={(e) => setPettyKeterangan(e.target.value)}
           />

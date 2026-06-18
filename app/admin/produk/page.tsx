@@ -39,22 +39,8 @@ import { DEFAULT_FORM, toVariantPayload, type ProductFormState } from "./compone
 import { getImageUrl } from "@/lib/utils"
 import { toast } from "sonner"
 import { MLoader } from "@/components/manola/MLoader"
-
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
+import { adminNavItems } from "@/components/layouts/adminNav"
+import { authService } from "@/lib/services/authService"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +85,8 @@ export default function AdminProdukPage() {
   const [categoryList, setCategoryList] = useState<string[]>([])
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [newCategoryName, setNewCategoryName] = useState("")
+
+  const currentUser = authService.getCurrentUser()
 
   // ─── Load produk ────────────────────────────────────────────────────────────
 
@@ -158,7 +146,8 @@ export default function AdminProdukPage() {
   // ─── Filter ─────────────────────────────────────────────────────────────────
 
   const filteredProducts = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        p.sku?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchCategory = !filterKategori || p.category === filterKategori
     const total = getTotalStock(p)
     const matchStock =
@@ -179,9 +168,12 @@ export default function AdminProdukPage() {
   const openEditModal = (product: Product) => {
     setSelectedProduct(product)
     setFormData({
+      sku: product.sku || "",
       name: product.name,
       description: product.description ?? "",
+      removeImageIds: [],
       price: product.price.toString(),
+      promoPrice: product.promoPrice ? product.promoPrice.toString() : "",
       category: product.category ?? "",
       categoryId: product.categoryId?.toString() ?? "",
       supplierId: product.supplierId?.toString() ?? "",
@@ -206,21 +198,35 @@ export default function AdminProdukPage() {
   // ─── Submit handlers ────────────────────────────────────────────────────────
 
   const handleAddProduct = async () => {
-    if (!formData.name || !formData.price) {
-      showToast("Nama produk dan harga wajib diisi", "error")
+    if (!formData.name || !formData.price || !formData.sku || !formData.supplierId || photos.length === 0) {
+      showToast("Foto produk, kode, nama, harga, dan supplier wajib diisi", "error")
       return
     }
+    const variantSet = new Set()
+    for (const v of formData.variants) {
+      const key = `${v.size}-${(v.color || "").trim().toLowerCase()}`
+      if (variantSet.has(key)) {
+        showToast("Terdapat variasi produk yang duplikat (ukuran dan warna sama)", "error")
+        return
+      }
+      variantSet.add(key)
+    }
+
     const fd = buildProductFormData(
       {
         name: formData.name,
         description: formData.description || undefined,
         price: parseInt(formData.price),
+        promoPrice: formData.promoPrice ? parseInt(formData.promoPrice) : null,
         category: formData.category || undefined,
         categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
+        sku: formData.sku || undefined,
       },
       toVariantPayload(formData.variants),
-      photos.length > 0 ? photos : undefined
+      photos.length > 0 ? photos : undefined,
+      formData.descriptionImage,
+      formData.removeDescriptionImage
     )
     try {
       setSubmitting(true)
@@ -228,9 +234,10 @@ export default function AdminProdukPage() {
       showToast("Produk berhasil ditambahkan", "success")
       setShowAddModal(false)
       await loadProducts()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      showToast("Gagal menambah produk", "error")
+      const msg = err?.response?.data?.message || err?.message || "Gagal menambah produk"
+      showToast(msg, "error")
     } finally {
       setSubmitting(false)
     }
@@ -242,17 +249,32 @@ export default function AdminProdukPage() {
       showToast("Nama produk dan harga wajib diisi", "error")
       return
     }
+    const variantSet = new Set()
+    for (const v of formData.variants) {
+      const key = `${v.size}-${(v.color || "").trim().toLowerCase()}`
+      if (variantSet.has(key)) {
+        showToast("Terdapat variasi produk yang duplikat (ukuran dan warna sama)", "error")
+        return
+      }
+      variantSet.add(key)
+    }
+
     const fd = buildProductFormData(
       {
         name: formData.name,
         description: formData.description || undefined,
         price: parseInt(formData.price),
+        promoPrice: formData.promoPrice ? parseInt(formData.promoPrice) : null,
         category: formData.category || undefined,
         categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
+        sku: formData.sku || undefined,
       },
       toVariantPayload(formData.variants),
-      photos.length > 0 ? photos : undefined
+      photos.length > 0 ? photos : undefined,
+      formData.descriptionImage,
+      formData.removeDescriptionImage,
+      formData.removeImageIds
     )
     try {
       setSubmitting(true)
@@ -260,9 +282,10 @@ export default function AdminProdukPage() {
       showToast("Produk berhasil diperbarui", "success")
       setShowEditModal(false)
       await loadProducts()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      showToast("Gagal memperbarui produk", "error")
+      const msg = err?.response?.data?.message || err?.message || "Gagal memperbarui produk"
+      showToast(msg, "error")
     } finally {
       setSubmitting(false)
     }
@@ -277,9 +300,9 @@ export default function AdminProdukPage() {
       setShowDeleteModal(false)
       setSelectedProduct(null)
       await loadProducts()
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
-      showToast("Gagal menghapus produk", "error")
+      showToast(err?.message || "Gagal menghapus produk", "error")
     } finally {
       setSubmitting(false)
     }
@@ -301,6 +324,13 @@ export default function AdminProdukPage() {
       },
     },
     {
+      key: "sku",
+      label: "Kode Produk",
+      render: (item: Product) => (
+        <span className="text-sm text-[#6B7280] font-mono">{item.sku || "-"}</span>
+      ),
+    },
+    {
       key: "name",
       label: "Nama Produk",
       render: (item: Product) => <span className="font-medium">{item.name}</span>,
@@ -313,9 +343,27 @@ export default function AdminProdukPage() {
       ),
     },
     {
+      key: "supplier",
+      label: "Supplier",
+      render: (item: Product) => (
+        <span className="text-sm text-[#6B7280]">{item.supplier?.nama ?? "-"}</span>
+      ),
+    },
+    {
       key: "price",
       label: "Harga",
-      render: (item: Product) => formatRupiah(item.price),
+      render: (item: Product) => (
+        <div className="flex flex-col">
+          {item.promoPrice ? (
+            <>
+              <span className="text-xs text-red-500 font-semibold">{formatRupiah(item.promoPrice)}</span>
+              <span className="text-xs text-[#6B7280] line-through">{formatRupiah(item.price)}</span>
+            </>
+          ) : (
+            <span className="text-sm font-medium">{formatRupiah(item.price)}</span>
+          )}
+        </div>
+      ),
     },
     {
       key: "stock",
@@ -327,7 +375,13 @@ export default function AdminProdukPage() {
             <span className={total <= 3 ? "text-red-500 font-semibold" : "text-green-600"}>
               {total}
             </span>
-            {total <= 3 && <MBadge variant="warning">Hampir Habis</MBadge>}
+            {total === 0 ? (
+              <MBadge variant="danger">Habis</MBadge>
+            ) : total <= 3 ? (
+              <MBadge variant="warning">Hampir Habis</MBadge>
+            ) : (
+              <MBadge variant="success">Tersedia</MBadge>
+            )}
           </div>
         )
       },
@@ -358,7 +412,7 @@ export default function AdminProdukPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
 
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
@@ -399,9 +453,6 @@ export default function AdminProdukPage() {
         </div>
 
         <div className="flex gap-2 w-full lg:w-auto">
-          <MButton variant="secondary" onClick={() => setShowKategoriModal(true)} className="flex-1 lg:flex-none">
-            Kategori
-          </MButton>
           <MButton variant="primary" onClick={openAddModal} className="flex-1 lg:flex-none">
             + Tambah
           </MButton>

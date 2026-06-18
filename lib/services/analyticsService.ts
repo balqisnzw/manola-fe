@@ -15,6 +15,7 @@ export interface TopProduct {
 
 export interface LowStockItem {
   id: number;
+  sku: string;
   productName: string;
   size: string;
   color: string;

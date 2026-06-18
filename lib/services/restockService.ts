@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 export interface RestockItem {
   id: number;
   jumlah: number;
+  tipe: "MASUK" | "KELUAR";
+  catatan: string | null;
   createdAt: string;
   variant: {
     id: number;
@@ -13,6 +15,7 @@ export interface RestockItem {
     stock: number;
     product: {
       id: number;
+      sku: string | null;
       name: string;
     };
   };
@@ -25,6 +28,8 @@ export interface RestockItem {
 export interface RestockPayload {
   productVariantId: number;
   jumlah: number;
+  tipe: "MASUK" | "KELUAR";
+  catatan?: string;
   supplierId?: number;
 }
 

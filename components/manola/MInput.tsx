@@ -22,7 +22,7 @@ const MInput = forwardRef<HTMLInputElement, MInputProps>(
       <div className="w-full">
         {label && (
           <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">
-            {label}
+            {label} {props.required && <span className="text-red-500">*</span>}
           </label>
         )}
         <div className="relative">

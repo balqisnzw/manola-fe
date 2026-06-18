@@ -25,15 +25,20 @@ export interface ProductSupplier {
 
 export interface Product {
   id: number;
+  sku: string | null;
   name: string;
   description: string | null;
+  descriptionImageUrl?: string | null;
   price: number;
+  promoPrice?: number | null;
   category: string | null;
   supplierId: number | null;
   images: ProductImage[];
   variants: ProductVariant[];
   supplier?: ProductSupplier | null;
   categoryId?: number | null;
+  rating?: number;
+  sold?: number;
   createdAt: string;
 }
 
@@ -54,9 +59,11 @@ export interface CreateProductPayload {
   name: string;
   description?: string;
   price: number;
+  promoPrice?: number | null;
   category?: string;
   categoryId?: number;
   supplierId?: number;
+  sku?: string;
   /** JSON string dari array variant, e.g. '[{"size":"M","color":"Merah","stock":10}]' */
   variants?: string;
 }
@@ -82,6 +89,14 @@ export const productService = {
 
     const res = await api.get<ApiResponse<Product[]>>(`/products${qs}`);
     return Array.isArray(res.data) ? res.data : [];
+  },
+
+  /**
+   * GET /products/sku-suggestion
+   */
+  async getSkuSuggestion(): Promise<string> {
+    const res = await api.get<ApiResponse<{ sku: string }>>("/products/sku-suggestion");
+    return res.data.sku;
   },
 
   /**
@@ -157,20 +172,36 @@ export const productService = {
 export function buildProductFormData(
   payload: CreateProductPayload,
   variantList: CreateVariantPayload[],
-  photos?: FileList | File[]
+  photos?: FileList | File[],
+  descriptionImage?: File | null,
+  removeDescriptionImage?: boolean,
+  removeImageIds?: number[]
 ): FormData {
   const fd = new FormData();
   fd.append("name", payload.name);
   if (payload.description) fd.append("description", payload.description);
   fd.append("price", String(payload.price));
+  if (payload.promoPrice !== undefined && payload.promoPrice !== null) {
+    fd.append("promoPrice", String(payload.promoPrice));
+  }
   if (payload.category) fd.append("category", payload.category);
   if (payload.categoryId !== undefined) fd.append("categoryId", String(payload.categoryId));
   if (payload.supplierId !== undefined) fd.append("supplierId", String(payload.supplierId));
+  if (payload.sku) fd.append("sku", payload.sku);
   if (variantList.length > 0) {
     fd.append("variants", JSON.stringify(variantList));
   }
   if (photos) {
     Array.from(photos).forEach((file) => fd.append("photos", file));
+  }
+  if (descriptionImage) {
+    fd.append("descriptionImage", descriptionImage);
+  }
+  if (removeDescriptionImage) {
+    fd.append("removeDescriptionImage", "true");
+  }
+  if (removeImageIds && removeImageIds.length > 0) {
+    fd.append("removeImageIds", JSON.stringify(removeImageIds));
   }
   return fd;
 }

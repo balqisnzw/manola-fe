@@ -9,15 +9,7 @@ import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Slid
 import { authService, stockService } from "@/lib/services"
 import type { RestockItem } from "@/lib/services/restockService"
 
-const navItems = [
-  { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  { label: "Stok Barang", href: "/owner/produk", icon: Package },
-  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
-  { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
-  { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
-  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
-]
+import { ownerNavItems as navItems } from "@/components/layouts/ownerNav"
 
 export default function OwnerRestockPage() {
   const [restocks, setRestocks] = useState<RestockItem[]>([])
@@ -65,7 +57,7 @@ export default function OwnerRestockPage() {
 
   return (
     <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Owner"} userRole="Owner">
-      <h1 className="text-2xl font-bold text-[#0A0A0A] mb-6">Laporan Riwayat Restock</h1>
+      <h1 className="text-2xl font-bold text-[#0A0A0A] mb-6">Riwayat Restock</h1>
 
       {loading ? (
         <MLoader />

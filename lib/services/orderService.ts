@@ -3,7 +3,7 @@ import type { Product, ProductVariant, ProductImage } from "./productService";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-export type OrderStatus = "DIPROSES" | "DIKEMAS" | "DIKIRIM" | "SELESAI";
+export type OrderStatus = "DIPROSES" | "DIKEMAS" | "DIKIRIM" | "SELESAI" | "DIKEMBALIKAN";
 export type OrderJenis = "ONLINE" | "OFFLINE";
 export type PaymentMetode = "CASH" | "QRIS" | "MIDTRANS";
 export type PaymentStatus = "MENUNGGU" | "BERHASIL" | "GAGAL";
@@ -41,11 +41,19 @@ export interface Order {
   jenis: OrderJenis;
   alamat_pengiriman: string | null;
   catatan: string | null;
+  ekspedisi: string | null;
+  resi: string | null;
   items: OrderItem[];
   payment: Payment | null;
+  returnRequest?: { id: number; status: string; createdAt: string; alasan: string; keterangan: string | null; bukti_url: string | null; resi: string | null; images: { id: number; url: string }[] } | null;
   user?: { id: number; nama: string; email: string } | null;
   kasir?: { id: number; nama: string } | null;
+  reviews?: { id: number; rating: number; komentar: string | null }[];
   createdAt: string;
+  updatedAt?: string;
+  dikemasAt?: string;
+  dikirimAt?: string;
+  selesaiAt?: string;
 }
 
 export interface CreateOrderPayload {
@@ -55,6 +63,7 @@ export interface CreateOrderPayload {
   ekspedisi?: string;
   catatan?: string;
   metode_pembayaran?: PaymentMetode;
+  voucherCode?: string;
   items: {
     variantId: number;
     jumlah: number;
@@ -64,6 +73,7 @@ export interface CreateOrderPayload {
 export interface GetOrdersParams {
   status?: OrderStatus;
   jenis?: OrderJenis;
+  userId?: number;
 }
 
 // ─── Order service ─────────────────────────────────────────────────────────────
@@ -82,6 +92,7 @@ export const orderService = {
     const query = new URLSearchParams();
     if (params?.status) query.set("status", params.status);
     if (params?.jenis) query.set("jenis", params.jenis);
+    if (params?.userId) query.set("userId", params.userId.toString());
     const qs = query.toString() ? `?${query}` : "";
     const res = await api.get<ApiResponse<Order[]>>(`/orders${qs}`);
     return Array.isArray(res.data) ? res.data : [];
@@ -167,6 +178,14 @@ export const paymentService = {
    */
   async cancel(orderId: number): Promise<Payment> {
     const res = await api.post<ApiResponse<Payment>>(`/payments/${orderId}/cancel`);
+    return res.data;
+  },
+
+  /**
+   * POST /payments/:orderId/sync
+   */
+  async syncStatus(orderId: number): Promise<Payment> {
+    const res = await api.post<ApiResponse<Payment>>(`/payments/${orderId}/sync`);
     return res.data;
   },
 };

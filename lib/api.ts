@@ -16,6 +16,7 @@ export function setToken(token: string): void {
 export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem("manola_cart");
 }
 
 export function getStoredUser<T = unknown>(): T | null {

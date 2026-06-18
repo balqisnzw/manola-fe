@@ -31,6 +31,7 @@ export default function LoginPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    no_telepon: "",
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,9 +45,15 @@ export default function LoginPage() {
     setSuccessMsg(null);
 
     // Client-side validation for registration
-    if (!isLogin && formData.password !== formData.confirmPassword) {
-      setError("Password dan konfirmasi password tidak cocok.");
-      return;
+    if (!isLogin) {
+      if (!formData.name.trim() || !formData.email.trim() || !formData.no_telepon.trim() || !formData.password.trim()) {
+        setError("Semua kolom wajib diisi.");
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError("Password dan konfirmasi password tidak cocok.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -64,7 +71,7 @@ export default function LoginPage() {
         
         // Beri sedikit waktu untuk melihat pesan sukses sebelum redirect
         setTimeout(() => {
-          router.push(redirect);
+          window.location.href = redirect;
         }, 800);
       } else {
         // ── REGISTER ──────────────────────────────────────────────────────────
@@ -72,11 +79,12 @@ export default function LoginPage() {
           email: formData.email,
           password: formData.password,
           nama: formData.name,
+          no_telepon: formData.no_telepon,
         });
         
         // After register, switch to login view
         setIsLogin(true);
-        setFormData({ name: "", email: formData.email, password: "", confirmPassword: "" });
+        setFormData({ name: "", email: formData.email, password: "", confirmPassword: "", no_telepon: "" });
         setSuccessMsg("Akun berhasil dibuat! Silakan masuk.");
         setLoading(false);
       }
@@ -153,6 +161,17 @@ export default function LoginPage() {
                   value={formData.name}
                   onChange={handleInputChange}
                   placeholder="Masukkan nama lengkap"
+                  required
+                />
+              )}
+              {!isLogin && (
+                <MInput
+                  label="No. Telepon"
+                  name="no_telepon"
+                  type="tel"
+                  value={formData.no_telepon}
+                  onChange={handleInputChange}
+                  placeholder="Contoh: 081234567890"
                   required
                 />
               )}

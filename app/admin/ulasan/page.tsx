@@ -11,25 +11,14 @@ import { productService, authService } from "@/lib/services"
 import { reviewService } from "@/lib/services/miscServices"
 import type { Product } from "@/lib/services/productService"
 import type { Review } from "@/lib/services/miscServices"
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
+import { adminNavItems } from "@/components/layouts/adminNav"
 
 interface ReviewRow {
   id: number
   customer: string
+  orderCode: string
   product: string
+  sku: string
   rating: number
   review: string
   date: string
@@ -75,7 +64,9 @@ export default function AdminUlasanPage() {
           return reviews.map((r: Review) => ({
             id: r.id,
             customer: r.user?.nama ?? "Anonim",
+            orderCode: r.orderId ? `#${r.orderId}` : "-",
             product: product.name,
+            sku: product.sku ?? "-",
             rating: r.rating,
             review: r.komentar ?? "",
             date: new Date(r.createdAt).toLocaleDateString("id-ID", {
@@ -98,8 +89,10 @@ export default function AdminUlasanPage() {
   }
 
   const columns = [
+    { key: "orderCode", label: "ID Pesanan", render: (item: ReviewRow) => <span className="font-mono text-sm">{item.orderCode}</span> },
     { key: "customer", label: "Pelanggan", render: (item: ReviewRow) => <span className="font-medium">{item.customer}</span> },
     { key: "product", label: "Produk", render: (item: ReviewRow) => item.product },
+    { key: "sku", label: "Kode Produk", render: (item: ReviewRow) => <span className="font-mono text-sm">{item.sku}</span> },
     { key: "rating", label: "Rating", render: (item: ReviewRow) => <StarRating rating={item.rating} /> },
     {
       key: "review",
@@ -116,7 +109,7 @@ export default function AdminUlasanPage() {
   ]
 
   return (
-    <SidebarLayout navItems={navItems} userName={currentUser?.nama ?? "Admin"} userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
       <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Ulasan Pelanggan</h1>
 
       {loading ? (

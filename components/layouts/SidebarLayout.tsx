@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { LogOut, LucideIcon, Menu, X } from "lucide-react"
 import { removeToken } from "@/lib/api"
+import { settingService } from "@/lib/services/miscServices"
+import { getImageUrl } from "@/lib/utils"
 
 interface NavItem {
   label: string
@@ -20,6 +22,10 @@ interface SidebarLayoutProps {
   userRole: string
 }
 
+let cachedLogoUrl: string | null = null;
+let hasFetchedLogo = false;
+let globalIsHydrated = false;
+
 export function SidebarLayout({
   navItems,
   children,
@@ -29,6 +35,25 @@ export function SidebarLayout({
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | null>(cachedLogoUrl)
+  const [mounted, setMounted] = useState(globalIsHydrated)
+
+  useEffect(() => {
+    globalIsHydrated = true;
+    setMounted(true);
+  }, [])
+
+  useEffect(() => {
+    if (!hasFetchedLogo) {
+      settingService.get().then(s => {
+        if (s.logo_url) {
+          cachedLogoUrl = s.logo_url
+          setLogoUrl(s.logo_url)
+        }
+        hasFetchedLogo = true
+      }).catch(() => {})
+    }
+  }, [])
 
   // Tutup menu mobile ketika rute berubah
   useEffect(() => {
@@ -44,9 +69,13 @@ export function SidebarLayout({
     <div className="min-h-screen bg-[#F9F9F9]">
       {/* Mobile Top Bar */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-[#E5E7EB] sticky top-0 z-30">
-        <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">
-          MANOLA
-        </span>
+        {logoUrl ? (
+          <img src={getImageUrl(logoUrl)} alt="MANOLA" className="h-6 object-contain" />
+        ) : (
+          <span className="font-bold tracking-widest text-sm text-[#0A0A0A]">
+            MANOLA
+          </span>
+        )}
         <button
           onClick={() => setIsMobileMenuOpen(true)}
           className="p-2 -mr-2 text-[#6B7280] hover:bg-gray-100 rounded-md transition-colors"
@@ -69,10 +98,14 @@ export function SidebarLayout({
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-[#E5E7EB] flex items-center justify-between">
-          <span className="font-bold tracking-widest text-sm text-[#0A0A0A] hidden lg:block">
-            MANOLA
-          </span>
+        <div className="px-6 py-5 border-b border-[#E5E7EB] flex items-center justify-between min-h-[73px]">
+          {logoUrl ? (
+            <img src={getImageUrl(logoUrl)} alt="MANOLA" className="h-8 object-contain hidden lg:block" />
+          ) : (
+            <span className="font-bold tracking-widest text-sm text-[#0A0A0A] hidden lg:block">
+              MANOLA
+            </span>
+          )}
           <span className="font-bold tracking-widest text-sm text-[#0A0A0A] lg:hidden">
             MENU
           </span>
@@ -88,23 +121,23 @@ export function SidebarLayout({
         <div className="px-6 py-4 border-b border-[#E5E7EB]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[#0A0A0A] text-white flex items-center justify-center text-sm font-medium">
-              {userName.charAt(0).toUpperCase()}
+              {mounted ? userName.charAt(0).toUpperCase() : ""}
             </div>
 
             <div>
               <p className="text-sm font-medium text-[#0A0A0A]">
-                {userName}
+                {mounted ? userName : "Memuat..."}
               </p>
 
-              <p className="text-xs text-[#6B7280]">
-                {userRole}
+              <p className="text-xs text-[#6B7280] capitalize">
+                {mounted ? userRole?.toLowerCase() : ""}
               </p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4">
+        <nav className="flex-1 py-4 overflow-y-auto">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||

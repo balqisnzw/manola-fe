@@ -17,6 +17,7 @@ export interface CreateEmployeePayload {
   email: string;
   password: string;
   nama: string;
+  no_telepon: string;
   foto?: string;
   role: EmployeeRole;
 }
@@ -130,6 +131,7 @@ export interface Review {
   komentar: string | null;
   createdAt: string;
   user?: { id: number; nama: string };
+  order?: { id_pesanan: string };
   images?: { id: number; url: string }[];
 }
 
@@ -155,9 +157,7 @@ export const reviewService = {
       payload.images.forEach(file => formData.append("images", file));
     }
 
-    const res = await api.post<ApiResponse<Review>>("/reviews", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const res = await api.upload<ApiResponse<Review>>("/reviews", formData);
     return res.data;
   },
 
@@ -205,6 +205,7 @@ export interface UserData {
   id: number;
   email: string;
   nama: string;
+  no_telepon: string | null;
   foto: string | null;
   role: string;
   createdAt: string;
@@ -384,6 +385,10 @@ export const settingService = {
   },
   async update(payload: Record<string, string>): Promise<any> {
     const res = await api.put<ApiResponse<any>>("/settings", payload);
+    return res.data;
+  },
+  async uploadLogo(fd: FormData): Promise<any> {
+    const res = await api.upload<ApiResponse<any>>("/settings/logo", fd, "POST");
     return res.data;
   }
 };

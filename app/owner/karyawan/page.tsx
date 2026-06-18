@@ -15,15 +15,7 @@ import type { User } from "@/lib/services/authService"
 import type { EmployeeRole } from "@/lib/services/miscServices"
 import { toast } from "sonner"
 
-const navItems = [
-  { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  { label: "Stok Barang", href: "/owner/produk", icon: Package },
-  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
-  { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
-  { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
-  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
-]
+import { ownerNavItems as navItems } from "@/components/layouts/ownerNav"
 
 export default function OwnerKaryawanPage() {
   const [employees, setEmployees] = useState<User[]>([])
@@ -41,6 +33,7 @@ export default function OwnerKaryawanPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    no_telepon: "",
     role: "ADMIN" as EmployeeRole,
   })
 
@@ -61,7 +54,7 @@ export default function OwnerKaryawanPage() {
   }
 
   const handleAddEmployee = async () => {
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.name || !formData.email || !formData.password || !formData.no_telepon) {
       toast.error("Semua field wajib diisi")
       return
     }
@@ -76,11 +69,12 @@ export default function OwnerKaryawanPage() {
         nama: formData.name,
         email: formData.email,
         password: formData.password,
+        no_telepon: formData.no_telepon,
         role: formData.role,
       })
       setEmployees([...employees, newEmployee])
       setShowAddModal(false)
-      setFormData({ name: "", email: "", password: "", confirmPassword: "", role: "ADMIN" })
+      setFormData({ name: "", email: "", password: "", confirmPassword: "", no_telepon: "", role: "ADMIN" })
       toast.success("Karyawan berhasil ditambahkan")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal menambahkan karyawan"
@@ -120,6 +114,7 @@ export default function OwnerKaryawanPage() {
   const columns = [
     { key: "name", label: "Nama", render: (item: User) => <span className="font-medium">{item.nama}</span> },
     { key: "email", label: "Email", render: (item: User) => item.email },
+    { key: "no_telepon", label: "No. Telepon", render: (item: User) => item.no_telepon || "-" },
     {
       key: "role",
       label: "Role",
@@ -203,6 +198,12 @@ export default function OwnerKaryawanPage() {
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          />
+          <MInput
+            label="No. Telepon"
+            type="tel"
+            value={formData.no_telepon}
+            onChange={(e) => setFormData({ ...formData, no_telepon: e.target.value })}
           />
           <MInput
             label="Password"

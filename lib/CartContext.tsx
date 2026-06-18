@@ -8,11 +8,16 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import { cartService } from "./services/cartService";
+import { getStoredUser } from "./api";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
 export interface CartItem {
-  /** ProductVariant ID — uniquely identifies size+color of a product */
+  id: number;
+  cartId: number;
   variantId: number;
   productId: number;
   name: string;
@@ -27,97 +32,116 @@ export interface CartItem {
 interface CartContextValue {
   items: CartItem[];
   cartCount: number;
-  addItem: (item: CartItem) => void;
-  removeItem: (variantId: number) => void;
-  updateQuantity: (variantId: number, quantity: number) => void;
-  clearCart: () => void;
+  loading: boolean;
+  reloadCart: () => Promise<void>;
+  addItem: (variantId: number, quantity: number) => Promise<void>;
+  removeItem: (variantId: number) => Promise<void>;
+  updateQuantity: (variantId: number, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
 }
-
-// ─── Constants ──────────────────────────────────────────────────────────────────
-
-const CART_STORAGE_KEY = "manola_cart";
 
 // ─── Context ────────────────────────────────────────────────────────────────────
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
 
-// ─── Helpers ────────────────────────────────────────────────────────────────────
-
-function loadCart(): CartItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(CART_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as CartItem[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCart(items: CartItem[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-}
-
 // ─── Provider ───────────────────────────────────────────────────────────────────
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // Hydrate from localStorage on mount (client-only)
-  useEffect(() => {
-    setItems(loadCart());
-    setHydrated(true);
-  }, []);
-
-  // Persist to localStorage whenever items change (skip first render)
-  useEffect(() => {
-    if (hydrated) {
-      saveCart(items);
-    }
-  }, [items, hydrated]);
-
-  const addItem = useCallback((newItem: CartItem) => {
-    setItems((prev) => {
-      const existing = prev.find((i) => i.variantId === newItem.variantId);
-      if (existing) {
-        // Increment quantity, capped at stock
-        return prev.map((i) =>
-          i.variantId === newItem.variantId
-            ? {
-                ...i,
-                quantity: Math.min(i.stock, i.quantity + newItem.quantity),
-              }
-            : i
-        );
+  const reloadCart = useCallback(async () => {
+    try {
+      const user = getStoredUser();
+      if (!user) {
+        setItems([]);
+        setLoading(false);
+        return;
       }
-      return [...prev, { ...newItem }];
-    });
+
+      setLoading(true);
+      const data = await cartService.getCart();
+      setItems(data);
+    } catch (error) {
+      console.error("Failed to load cart:", error);
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const removeItem = useCallback((variantId: number) => {
-    setItems((prev) => prev.filter((i) => i.variantId !== variantId));
+  useEffect(() => {
+    reloadCart();
+  }, [reloadCart]);
+
+  const checkAuth = () => {
+    const user = getStoredUser();
+    if (!user) {
+      toast.error("Silakan login terlebih dahulu untuk menambah ke keranjang.");
+      router.push("/login");
+      return false;
+    }
+    return true;
+  };
+
+  const addItem = useCallback(async (variantId: number, quantity: number) => {
+    if (!checkAuth()) return;
+    try {
+      const updatedCart = await cartService.addToCart(variantId, quantity);
+      setItems(updatedCart);
+      toast.success("Berhasil ditambahkan ke keranjang!");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Gagal menambahkan item");
+      throw error;
+    }
   }, []);
 
-  const updateQuantity = useCallback((variantId: number, quantity: number) => {
-    setItems((prev) =>
-      prev.map((i) =>
-        i.variantId === variantId
-          ? { ...i, quantity: Math.max(1, Math.min(i.stock, quantity)) }
-          : i
-      )
-    );
+  const removeItem = useCallback(async (variantId: number) => {
+    if (!checkAuth()) return;
+    try {
+      const updatedCart = await cartService.removeItem(variantId);
+      setItems(updatedCart);
+      toast.success("Barang dihapus dari keranjang");
+    } catch (error: any) {
+      toast.error("Gagal menghapus item");
+    }
   }, []);
 
-  const clearCart = useCallback(() => {
-    setItems([]);
+  const updateQuantity = useCallback(async (variantId: number, quantity: number) => {
+    if (!checkAuth()) return;
+    try {
+      const updatedCart = await cartService.updateQuantity(variantId, quantity);
+      setItems(updatedCart);
+    } catch (error: any) {
+      toast.error("Gagal memperbarui jumlah barang");
+    }
+  }, []);
+
+  const clearCart = useCallback(async () => {
+    if (!checkAuth()) return;
+    try {
+      await cartService.clearCart();
+      setItems([]);
+    } catch (error: any) {
+      toast.error("Gagal mengosongkan keranjang");
+    }
   }, []);
 
   const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
 
   return (
     <CartContext.Provider
-      value={{ items, cartCount, addItem, removeItem, updateQuantity, clearCart }}
+      value={{
+        items,
+        cartCount,
+        loading,
+        reloadCart,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+      }}
     >
       {children}
     </CartContext.Provider>

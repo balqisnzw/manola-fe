@@ -9,6 +9,7 @@ import { X, Upload } from "lucide-react"
 import { SIZES, type ProductFormState, type VariantRow } from "./types"
 import type { Supplier } from "@/lib/services/supplierService"
 import type { Category } from "@/lib/services/miscServices"
+import { toast } from "sonner"
 
 interface AddProductModalProps {
   isOpen: boolean
@@ -44,8 +45,21 @@ export function AddProductModal({
     }
   }
 
+  const descriptionImageInputRef = useRef<HTMLInputElement>(null)
+
+  const handleDescriptionImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Ukuran maksimal foto deskripsi adalah 5MB")
+        return
+      }
+      onChange({ ...formData, descriptionImage: file })
+    }
+  }
+
   const addVariantRow = () =>
-    onChange({ ...formData, variants: [...formData.variants, { size: "M", color: "", stock: "" }] })
+    onChange({ ...formData, variants: [...formData.variants, { size: "", color: "", stock: "" }] })
 
   const removeVariantRow = (index: number) =>
     onChange({ ...formData, variants: formData.variants.filter((_, i) => i !== index) })
@@ -121,6 +135,13 @@ export function AddProductModal({
         {/* Kolom Kanan — Form */}
         <div className="space-y-4">
           <MInput
+            label="Kode Produk (SKU)"
+            value={formData.sku}
+            onChange={(e) => onChange({ ...formData, sku: e.target.value })}
+            placeholder="Contoh: PRD-0001 atau KAOS-HITAM"
+          />
+
+          <MInput
             label="Nama Produk"
             value={formData.name}
             onChange={(e) => onChange({ ...formData, name: e.target.value })}
@@ -133,9 +154,45 @@ export function AddProductModal({
               rows={3}
               value={formData.description}
               onChange={(e) => onChange({ ...formData, description: e.target.value })}
-              className="w-full border border-[#E5E7EB] rounded-md px-3 py-2 text-sm focus:border-[#0A0A0A] focus:outline-none"
+              className="w-full border border-[#E5E7EB] rounded-md px-3 py-2 text-sm focus:border-[#0A0A0A] focus:outline-none mb-2"
               placeholder="Deskripsi produk (opsional)"
             />
+            {/* Foto Deskripsi / Panduan Ukuran */}
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                ref={descriptionImageInputRef}
+                onChange={handleDescriptionImageChange}
+              />
+              <MButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => descriptionImageInputRef.current?.click()}
+              >
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                Tambah Foto
+              </MButton>
+              {formData.descriptionImage && (
+                <div className="flex items-center gap-2 text-sm text-[#0A0A0A]">
+                  <img
+                    src={URL.createObjectURL(formData.descriptionImage)}
+                    alt="preview"
+                    className="w-8 h-8 object-cover rounded border"
+                  />
+                  <span className="truncate max-w-[150px]">{formData.descriptionImage.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ ...formData, descriptionImage: null })}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -146,7 +203,24 @@ export function AddProductModal({
                 type="number"
                 value={formData.price}
                 onChange={(e) => onChange({ ...formData, price: e.target.value })}
+                onWheel={(e) => (e.target as HTMLElement).blur()}
                 placeholder="0"
+                min={0}
+                className="flex-1 h-10 px-2 text-sm focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Harga Promo (opsional)</label>
+            <div className="flex items-center border border-[#E5E7EB] rounded-md">
+              <span className="px-3 text-[#6B7280] text-sm">Rp</span>
+              <input
+                type="number"
+                value={formData.promoPrice}
+                onChange={(e) => onChange({ ...formData, promoPrice: e.target.value })}
+                onWheel={(e) => (e.target as HTMLElement).blur()}
+                placeholder="Biarkan kosong jika tidak promo"
                 min={0}
                 className="flex-1 h-10 px-2 text-sm focus:outline-none"
               />
@@ -201,8 +275,9 @@ export function AddProductModal({
                   <select
                     value={variant.size}
                     onChange={(e) => updateVariantRow(index, "size", e.target.value)}
-                    className="w-20 h-8 border border-[#E5E7EB] rounded-md px-2 text-sm bg-white"
+                    className="w-24 h-8 border border-[#E5E7EB] rounded-md px-2 text-sm bg-white"
                   >
+                    <option value="">-- Tidak ada --</option>
                     {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                   <input
@@ -216,6 +291,7 @@ export function AddProductModal({
                     type="number"
                     value={variant.stock}
                     onChange={(e) => updateVariantRow(index, "stock", e.target.value)}
+                    onWheel={(e) => (e.target as HTMLElement).blur()}
                     min={0}
                     className="w-16 h-8 border border-[#E5E7EB] rounded-md px-2 text-sm"
                   />

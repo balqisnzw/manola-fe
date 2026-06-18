@@ -13,22 +13,10 @@ import {
   FolderTree,
 } from "lucide-react"
 import { orderService, type Order } from "@/lib/services/orderService"
+import { authService } from "@/lib/services"
 import { formatPrice } from "@/lib/utils"
 import { toast } from "sonner"
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
+import { adminNavItems } from "@/components/layouts/adminNav"
 
 function getStatusVariant(status: string) {
   switch (status) {
@@ -36,18 +24,23 @@ function getStatusVariant(status: string) {
     case "DIKEMAS": return "warning"
     case "DIKIRIM": return "info"
     case "SELESAI": return "success"
+    case "DIBATALKAN": return "danger"
     default: return "gray"
   }
 }
 
 export default function AdminLaporanPage() {
   const [orders, setOrders] = useState<Order[]>([])
+  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState("")
   const [filterDateFrom, setFilterDateFrom] = useState("")
   const [filterDateTo, setFilterDateTo] = useState("")
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { 
+    setUser(authService.getCurrentUser())
+    loadData() 
+  }, [])
 
   async function loadData() {
     setLoading(true)
@@ -56,23 +49,48 @@ export default function AdminLaporanPage() {
     finally { setLoading(false) }
   }
 
-  const filteredOrders = orders.filter((o) => {
-    if (filterStatus && o.status !== filterStatus) return false
-    if (filterDateFrom && new Date(o.createdAt) < new Date(filterDateFrom)) return false
+  const mappedOrders = orders.map(o => ({
+    ...o,
+    computedStatus: o.payment?.status_pembayaran === "GAGAL" ? "DIBATALKAN" : o.status
+  }))
+
+  const filteredOrders = mappedOrders.filter((o) => {
+    if (filterStatus && o.computedStatus !== filterStatus) return false
+    
+    const orderDate = new Date(o.createdAt)
+
+    if (filterDateFrom) {
+      const from = new Date(filterDateFrom)
+      from.setHours(0, 0, 0, 0)
+      if (orderDate < from) return false
+    }
+
     if (filterDateTo) {
       const to = new Date(filterDateTo)
       to.setHours(23, 59, 59, 999)
-      if (new Date(o.createdAt) > to) return false
+      if (orderDate > to) return false
     }
     return true
   })
 
   const totalPenjualan = filteredOrders
-    .filter((o) => o.status === "SELESAI")
+    .filter((o) => o.payment?.status_pembayaran === "BERHASIL" && o.computedStatus !== "DIKEMBALIKAN")
     .reduce((sum, o) => sum + o.total_harga, 0)
 
   const totalPesanan = filteredOrders.length
-  const totalSelesai = filteredOrders.filter((o) => o.status === "SELESAI").length
+  const totalSelesai = filteredOrders.filter((o) => o.computedStatus === "SELESAI").length
+
+  const totalPenjualanOnline = filteredOrders
+    .filter((o) => o.payment?.status_pembayaran === "BERHASIL" && o.computedStatus !== "DIKEMBALIKAN" && o.jenis === "ONLINE")
+    .reduce((sum, o) => sum + o.total_harga, 0)
+
+  const totalPenjualanOfflineCash = filteredOrders
+    .filter((o) => o.payment?.status_pembayaran === "BERHASIL" && o.computedStatus !== "DIKEMBALIKAN" && o.jenis === "OFFLINE" && o.payment?.metode_pembayaran === "CASH")
+    .reduce((sum, o) => sum + o.total_harga, 0)
+
+  const totalPenjualanOfflineQRIS = filteredOrders
+    .filter((o) => o.payment?.status_pembayaran === "BERHASIL" && o.computedStatus !== "DIKEMBALIKAN" && o.jenis === "OFFLINE" && o.payment?.metode_pembayaran === "QRIS")
+    .reduce((sum, o) => sum + o.total_harga, 0)
 
   function handlePrint() {
     window.print()
@@ -83,13 +101,20 @@ export default function AdminLaporanPage() {
     { key: "tanggal", label: "Tanggal", render: (o: Order) => new Date(o.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) },
     { key: "pelanggan", label: "Pelanggan", render: (o: Order) => o.user?.nama ?? "Guest" },
     { key: "jenis", label: "Jenis", render: (o: Order) => <MBadge variant={o.jenis === "ONLINE" ? "info" : "gray"}>{o.jenis}</MBadge> },
-    { key: "total", label: "Total", render: (o: Order) => formatPrice(o.total_harga) },
-    { key: "status", label: "Status", render: (o: Order) => <MBadge variant={getStatusVariant(o.status) as any}>{o.status}</MBadge> },
-    { key: "pembayaran", label: "Pembayaran", render: (o: Order) => o.payment?.metode_pembayaran ?? "-" },
+    { key: "total", label: "Total", render: (o: any) => formatPrice(o.total_harga) },
+    { key: "status", label: "Status", render: (o: any) => <MBadge variant={getStatusVariant(o.computedStatus) as any}>{o.computedStatus}</MBadge> },
+    { key: "pembayaran", label: "Pembayaran", render: (o: Order) => {
+        if (o.payment?.metode_pembayaran === "MIDTRANS" && (o.payment as any).midtrans_payment_type) {
+          return (o.payment as any).midtrans_payment_type;
+        }
+        return o.payment?.metode_pembayaran ?? "-";
+    } },
   ]
 
+  if (!user) return null;
+
   return (
-    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={user.nama} userRole={user.role}>
       {/* Screen only: header & filters */}
       <div className="print:hidden">
         <div className="flex items-center justify-between mb-6">
@@ -105,6 +130,7 @@ export default function AdminLaporanPage() {
             <option value="DIKEMAS">Dikemas</option>
             <option value="DIKIRIM">Dikirim</option>
             <option value="SELESAI">Selesai</option>
+            <option value="DIBATALKAN">Dibatalkan</option>
           </select>
           <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white" />
           <span className="flex items-center text-sm text-[#6B7280]">s/d</span>
@@ -122,8 +148,33 @@ export default function AdminLaporanPage() {
             <p className="text-2xl font-bold text-green-600">{totalSelesai}</p>
           </MCard>
           <MCard>
-            <p className="text-sm text-[#6B7280]">Total Penjualan (Selesai)</p>
+            <p className="text-sm text-[#6B7280]">Total Pendapatan (Lunas)</p>
             <p className="text-2xl font-bold text-[#0A0A0A]">{formatPrice(totalPenjualan)}</p>
+          </MCard>
+        </div>
+
+        {/* Rincian Pemasukan cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <MCard>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <p className="text-sm text-[#6B7280]">Pemasukan Online (Midtrans)</p>
+            </div>
+            <p className="text-2xl font-bold text-blue-600">{formatPrice(totalPenjualanOnline)}</p>
+          </MCard>
+          <MCard>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <p className="text-sm text-[#6B7280]">Pemasukan Kasir (Cash)</p>
+            </div>
+            <p className="text-2xl font-bold text-emerald-600">{formatPrice(totalPenjualanOfflineCash)}</p>
+          </MCard>
+          <MCard>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <p className="text-sm text-[#6B7280]">Pemasukan Kasir (QRIS)</p>
+            </div>
+            <p className="text-2xl font-bold text-purple-600">{formatPrice(totalPenjualanOfflineQRIS)}</p>
           </MCard>
         </div>
       </div>

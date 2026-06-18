@@ -13,6 +13,7 @@ export default function CetakResiPage() {
   const router = useRouter()
   const id = parseInt(params.id as string)
   const [order, setOrder] = useState<Order | null>(null)
+  const [settings, setSettings] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,8 +24,12 @@ export default function CetakResiPage() {
 
   async function loadOrder() {
     try {
-      const data = await orderService.getById(id)
-      setOrder(data)
+      const [orderData, settingData] = await Promise.all([
+        orderService.getById(id),
+        import("@/lib/services/miscServices").then(m => m.settingService.get())
+      ])
+      setOrder(orderData)
+      setSettings(settingData)
     } catch (err) {
       console.error("Failed to load order:", err)
     } finally {
@@ -47,11 +52,8 @@ export default function CetakResiPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8 print:p-0 print:bg-white">
-      {/* Back button and Print button, hidden on print */}
-      <div className="max-w-xl mx-auto mb-6 flex justify-between items-center print:hidden">
-        <MButton variant="ghost" onClick={() => router.back()} className="flex items-center gap-2">
-          <ArrowLeft className="w-4 h-4" /> Kembali
-        </MButton>
+      {/* Print button, hidden on print */}
+      <div className="max-w-xl mx-auto mb-6 flex justify-end items-center print:hidden">
         <MButton variant="primary" onClick={() => window.print()} className="flex items-center gap-2">
           <Printer className="w-4 h-4" /> Cetak Resi
         </MButton>
@@ -61,7 +63,7 @@ export default function CetakResiPage() {
       <div className="max-w-xl mx-auto bg-white border-2 border-dashed border-gray-400 p-6 rounded-lg shadow-sm print:shadow-none print:border-solid print:border-black print:rounded-none">
         {/* Header */}
         <div className="border-b-2 border-black pb-4 mb-4 text-center">
-          <h1 className="text-xl font-bold tracking-wider">MANOLA</h1>
+          <h1 className="text-xl font-bold tracking-wider">{settings.shop_name?.toUpperCase() || "MANOLA"}</h1>
           <p className="text-xs text-gray-500 print:text-black">Premium Apparel Store</p>
           <div className="mt-2 flex justify-between items-center text-xs font-mono">
             <span>ORDER ID: #{order.id}</span>
@@ -79,9 +81,9 @@ export default function CetakResiPage() {
         <div className="grid grid-cols-2 gap-4 text-sm mb-6 border-b border-gray-200 pb-4">
           <div>
             <p className="font-semibold text-gray-400 uppercase text-[10px] print:text-black">Pengirim</p>
-            <p className="font-bold">MANOLA Store</p>
-            <p className="text-xs text-gray-600 print:text-black">Kota Bandung, Jawa Barat</p>
-            <p className="text-xs text-gray-600 print:text-black">Telp: 0812-3456-7890</p>
+            <p className="font-bold">{settings.shop_name || "MANOLA Store"}</p>
+            <p className="text-xs text-gray-600 print:text-black whitespace-pre-wrap">{settings.shop_address || "Kota Bandung, Jawa Barat"}</p>
+            <p className="text-xs text-gray-600 print:text-black">Telp: {settings.shop_phone || "0812-3456-7890"}</p>
           </div>
           <div>
             <p className="font-semibold text-gray-400 uppercase text-[10px] print:text-black">Penerima</p>

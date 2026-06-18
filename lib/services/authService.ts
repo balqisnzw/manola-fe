@@ -22,6 +22,7 @@ export interface User {
   email: string;
   nama: string;
   foto: string | null;
+  no_telepon?: string;
   role: UserRole;
   createdAt: string;
 }
@@ -36,6 +37,7 @@ interface RegisterPayload {
   email: string;
   password: string;
   nama: string;
+  no_telepon: string;
   foto?: string;
 }
 
@@ -85,7 +87,7 @@ export const authService = {
   },
 
   /** Update profile (Mock/Real depending on backend) */
-  async updateProfile(payload: { nama?: string; email?: string }): Promise<User> {
+  async updateProfile(payload: { nama?: string; email?: string; no_telepon?: string }): Promise<User> {
     const res = await api.put<User>("/auth/profile", payload);
     setStoredUser(res);
     setCookie("manola_user", JSON.stringify(res));

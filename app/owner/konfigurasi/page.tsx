@@ -10,15 +10,7 @@ import { LayoutDashboard, Users, UserCog, Settings, Package, ClipboardList, Slid
 import { authService, settingService } from "@/lib/services"
 import { toast } from "sonner"
 
-const navItems = [
-  { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-  { label: "Stok Barang", href: "/owner/produk", icon: Package },
-  { label: "Riwayat Restock", href: "/owner/restock", icon: ClipboardList },
-  { label: "Pelanggan", href: "/owner/pelanggan", icon: Users },
-  { label: "Karyawan", href: "/owner/karyawan", icon: UserCog },
-  { label: "Konfigurasi Toko", href: "/owner/konfigurasi", icon: Sliders },
-  { label: "Pengaturan Profil", href: "/owner/pengaturan", icon: Settings },
-]
+import { ownerNavItems as navItems } from "@/components/layouts/ownerNav"
 
 export default function OwnerKonfigurasiPage() {
   const currentUser = authService.getCurrentUser()
@@ -88,11 +80,6 @@ export default function OwnerKonfigurasiPage() {
             <MInput label="Nama Toko" required value={shopName} onChange={e => setShopName(e.target.value)} />
             <MInput label="Alamat Toko" required value={shopAddress} onChange={e => setShopAddress(e.target.value)} />
             <MInput label="Nomor Telepon Toko" required value={shopPhone} onChange={e => setShopPhone(e.target.value)} />
-
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 pt-2">Keuangan & Pembayaran</h2>
-            <MInput label="PPN (%)" type="number" required value={taxPercent} onChange={e => setTaxPercent(e.target.value)} />
-            <MInput label="Nama Bank Transaksi" placeholder="Contoh: BCA / Mandiri" value={bankName} onChange={e => setBankName(e.target.value)} />
-            <MInput label="Nomor Rekening Bank" placeholder="Contoh: 12930283719" value={bankAccount} onChange={e => setBankAccount(e.target.value)} />
 
             <MButton type="submit" variant="primary" fullWidth size="lg" className="mt-4" disabled={submitting}>
               {submitting ? "Menyimpan..." : "Simpan Konfigurasi Global"}

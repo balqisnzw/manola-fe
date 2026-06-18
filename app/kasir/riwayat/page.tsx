@@ -59,6 +59,14 @@ export default function KasirRiwayatPage() {
     (t.user?.nama ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalPenjualanCash = filteredOrders
+    .filter((o) => o.status === "SELESAI" && o.payment?.metode_pembayaran === "CASH")
+    .reduce((sum, o) => sum + o.total_harga, 0)
+
+  const totalPenjualanQRIS = filteredOrders
+    .filter((o) => o.status === "SELESAI" && o.payment?.metode_pembayaran === "QRIS")
+    .reduce((sum, o) => sum + o.total_harga, 0)
+
   const columns = [
     { key: "id", label: "ID Transaksi", render: (item: Order) => <span className="font-mono text-sm">#{item.id}</span> },
     {
@@ -103,6 +111,24 @@ export default function KasirRiwayatPage() {
     <NavbarLayout navItems={navItems} rightContent={rightContent}>
       <div className="p-8">
         <h1 className="text-2xl font-semibold text-[#0A0A0A] mb-6">Riwayat Transaksi</h1>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <MCard>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+              <p className="text-sm text-[#6B7280]">Pemasukan Kasir (Cash)</p>
+            </div>
+            <p className="text-2xl font-bold text-emerald-600">{formatRupiah(totalPenjualanCash)}</p>
+          </MCard>
+          <MCard>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <p className="text-sm text-[#6B7280]">Pemasukan Kasir (QRIS)</p>
+            </div>
+            <p className="text-2xl font-bold text-purple-600">{formatRupiah(totalPenjualanQRIS)}</p>
+          </MCard>
+        </div>
 
         {/* Filters */}
         <div className="flex items-center gap-4 mb-6">
@@ -155,15 +181,28 @@ export default function KasirRiwayatPage() {
                 </tr>
               </thead>
               <tbody>
-                {selectedOrder.items?.map((item) => (
-                  <tr key={item.id} className="border-b border-[#E5E7EB]">
-                    <td className="py-2 font-medium">{item.variant?.product?.name ?? "-"}</td>
-                    <td className="py-2">{item.variant?.size ?? "-"}</td>
-                    <td className="py-2">{item.variant?.color ?? "-"}</td>
-                    <td className="py-2">{item.jumlah}</td>
-                    <td className="py-2 text-right">{formatRupiah(item.harga_satuan * item.jumlah)}</td>
-                  </tr>
-                ))}
+                {selectedOrder.items?.map((item) => {
+                  const normalPrice = item.variant?.product?.price;
+                  const isDiscounted = normalPrice && item.harga_satuan < normalPrice;
+                  
+                  return (
+                    <tr key={item.id} className="border-b border-[#E5E7EB]">
+                      <td className="py-2">
+                        <p className="font-medium">{item.variant?.product?.name ?? "-"}</p>
+                        {isDiscounted && (
+                          <p className="text-[10px] mt-0.5 text-[#6B7280]">
+                            Harga promo: <span className="text-green-600 font-medium">{formatRupiah(item.harga_satuan)}</span> 
+                            {' '}(normal: <span className="line-through">{formatRupiah(normalPrice)}</span>)
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-2">{item.variant?.size ?? "-"}</td>
+                      <td className="py-2">{item.variant?.color ?? "-"}</td>
+                      <td className="py-2">{item.jumlah}</td>
+                      <td className="py-2 text-right">{formatRupiah(item.harga_satuan * item.jumlah)}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
 

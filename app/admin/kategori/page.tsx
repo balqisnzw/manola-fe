@@ -14,26 +14,15 @@ import {
   FolderTree,
 } from "lucide-react"
 import { categoryService, type Category } from "@/lib/services/miscServices"
+import { authService } from "@/lib/services"
 import { toast } from "sonner"
-
-const navItems = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Produk", href: "/admin/produk", icon: ShoppingBag },
-  { label: "Kategori", href: "/admin/kategori", icon: FolderTree },
-  { label: "Stok", href: "/admin/stok", icon: Archive },
-  { label: "Supplier", href: "/admin/supplier", icon: Truck },
-  { label: "Pesanan", href: "/admin/pesanan", icon: ClipboardList },
-  { label: "Promo", href: "/admin/promo", icon: Tag },
-  { label: "Banner", href: "/admin/banner", icon: Image },
-  { label: "Laporan", href: "/admin/laporan", icon: FileText },
-  { label: "Ulasan", href: "/admin/ulasan", icon: MessageSquare },
-  { label: "Pengaturan", href: "/admin/pengaturan", icon: Settings },
-]
+import { adminNavItems } from "@/components/layouts/adminNav"
 
 export default function AdminKategoriPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const currentUser = authService.getCurrentUser()
 
   const [showModal, setShowModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -104,7 +93,7 @@ export default function AdminKategoriPage() {
   ]
 
   return (
-    <SidebarLayout navItems={navItems} userName="Admin" userRole="Admin">
+    <SidebarLayout navItems={adminNavItems} userName={currentUser?.nama ?? "Admin"} userRole={currentUser?.role ?? "Admin"}>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-[#0A0A0A]">Kategori Produk</h1>
         <MButton onClick={openAdd}>+ Tambah Kategori</MButton>

@@ -69,9 +69,10 @@ export default function KasirTransaksiPage() {
   const [selectedColor, setSelectedColor] = useState("")
   const [selectedQty, setSelectedQty] = useState(1)
 
-  const user = authService.getCurrentUser()
+  const [user, setUser] = useState<ReturnType<typeof authService.getCurrentUser>>(null)
 
   useEffect(() => {
+    setUser(authService.getCurrentUser())
     loadProducts()
     checkActiveShift()
   }, [])
@@ -124,6 +125,9 @@ export default function KasirTransaksiPage() {
   const handleExpandProduct = (productId: number) => {
     const product = products.find((p) => p.id === productId)
     if (product && product.variants.length > 0) {
+      const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0)
+      if (totalStock <= 0) return
+      
       setExpandedProduct(productId)
       const firstVariant = product.variants[0]
       setSelectedVariantId(firstVariant.id)
@@ -154,7 +158,7 @@ export default function KasirTransaksiPage() {
           size: selectedSize,
           color: selectedColor,
           qty: selectedQty,
-          price: product.price,
+          price: product.promoPrice ?? product.price,
           image: product.images?.[0]?.url ?? "" },
       ])
     }
@@ -312,29 +316,53 @@ export default function KasirTransaksiPage() {
                 <p className="text-sm">Tidak ada produk ditemukan</p>
               </div>
             ) : (
-              filteredProducts.map((product) => (
+              filteredProducts.map((product) => {
+                const totalStock = product.variants?.reduce((sum, v) => sum + v.stock, 0) ?? 0;
+                const isSoldOut = totalStock <= 0;
+                
+                return (
                 <div key={product.id} className="border-b border-[#E5E7EB] px-4 py-3">
-                  <div className="flex items-center gap-3 cursor-pointer">
-                    <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                      if (!isSoldOut) {
+                        expandedProduct === product.id ? setExpandedProduct(null) : handleExpandProduct(product.id)
+                      }
+                  }}>
+                    <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex-shrink-0 relative">
                       <img
                         src={getImageUrl(product.images?.[0]?.url)}
                         alt={product.name}
-                        className="w-full h-full object-cover"
+                        className={`w-full h-full object-cover ${isSoldOut ? 'opacity-50 grayscale' : ''}`}
                       />
+                      {isSoldOut && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+                          <span className="text-white text-[8px] font-bold px-1 py-0.5 bg-red-600 rounded">HABIS</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-[#0A0A0A]">{product.name}</p>
+                      <p className={`text-sm font-medium ${isSoldOut ? 'text-gray-400' : 'text-[#0A0A0A]'}`}>{product.name}</p>
                       <p className="text-xs text-[#6B7280]">{product.category ?? "-"}</p>
                     </div>
-                    <p className="text-sm font-semibold">{formatRupiah(product.price)}</p>
+                    <div className="flex flex-col items-end">
+                      {product.promoPrice ? (
+                        <>
+                          <p className={`text-sm font-semibold ${isSoldOut ? 'text-gray-400' : 'text-red-500'}`}>{formatRupiah(product.promoPrice)}</p>
+                          <p className="text-xs text-[#6B7280] line-through">{formatRupiah(product.price)}</p>
+                        </>
+                      ) : (
+                        <p className={`text-sm font-semibold ${isSoldOut ? 'text-gray-400' : ''}`}>{formatRupiah(product.price)}</p>
+                      )}
+                    </div>
                     <MButton
                       variant="ghost"
                       size="sm"
-                      onClick={() =>
+                      disabled={isSoldOut}
+                      onClick={(e) => {
+                        e.stopPropagation();
                         expandedProduct === product.id
                           ? setExpandedProduct(null)
                           : handleExpandProduct(product.id)
-                      }
+                      }}
                     >
                       <Plus className="w-4 h-4" />
                     </MButton>
@@ -397,8 +425,9 @@ export default function KasirTransaksiPage() {
                     </div>
                   )}
                 </div>
-              ))
-            )}
+              );
+            })
+          )}
           </div>
         </div>
 
@@ -510,12 +539,10 @@ export default function KasirTransaksiPage() {
                 )}
               </div>
             ) : (
-              <div className="mb-4">
-                <div className="border border-dashed border-[#E5E7EB] rounded-lg aspect-square max-w-[140px] mx-auto flex items-center justify-center">
-                  <span className="text-[#6B7280] text-sm">QR Code</span>
-                </div>
-                <p className="text-xs text-[#6B7280] text-center mt-2">
-                  QR Code akan tampil di sini
+              <div className="mb-4 text-center py-6 bg-[#F9F9F9] rounded-lg border border-[#E5E7EB]">
+                <p className="text-sm font-medium text-[#0A0A0A]">Pembayaran QRIS Fisik</p>
+                <p className="text-xs text-[#6B7280] mt-1 px-4">
+                  Silakan arahkan pelanggan untuk memindai papan QRIS toko.
                 </p>
               </div>
             )}
