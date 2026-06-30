@@ -24,6 +24,7 @@ export interface ProductFormState {
   categoryId: string
   supplierId: string
   variants: VariantRow[]
+  colorTags: string
   descriptionImage?: File | null
   removeDescriptionImage?: boolean
   removeImageIds?: number[]
@@ -39,6 +40,7 @@ export const DEFAULT_FORM: ProductFormState = {
   categoryId: "",
   supplierId: "",
   variants: [{ size: "", color: "", stock: "" }],
+  colorTags: "",
   descriptionImage: null,
   removeDescriptionImage: false,
   removeImageIds: [],

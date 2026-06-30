@@ -39,6 +39,7 @@ export interface Product {
   categoryId?: number | null;
   rating?: number;
   sold?: number;
+  colorTags?: string | null;
   createdAt: string;
 }
 
@@ -53,6 +54,8 @@ export interface GetProductsParams {
   category?: string;
   minPrice?: number;
   maxPrice?: number;
+  size?: string;
+  color?: string;
 }
 
 export interface CreateProductPayload {
@@ -64,6 +67,7 @@ export interface CreateProductPayload {
   categoryId?: number;
   supplierId?: number;
   sku?: string;
+  colorTags?: string;
   /** JSON string dari array variant, e.g. '[{"size":"M","color":"Merah","stock":10}]' */
   variants?: string;
 }
@@ -85,6 +89,8 @@ export const productService = {
     if (params?.category) query.set("category", params.category);
     if (params?.minPrice !== undefined) query.set("minPrice", String(params.minPrice));
     if (params?.maxPrice !== undefined) query.set("maxPrice", String(params.maxPrice));
+    if (params?.size) query.set("size", params.size);
+    if (params?.color) query.set("color", params.color);
     const qs = query.toString() ? `?${query}` : "";
 
     const res = await api.get<ApiResponse<Product[]>>(`/products${qs}`);
@@ -188,6 +194,7 @@ export function buildProductFormData(
   if (payload.categoryId !== undefined) fd.append("categoryId", String(payload.categoryId));
   if (payload.supplierId !== undefined) fd.append("supplierId", String(payload.supplierId));
   if (payload.sku) fd.append("sku", payload.sku);
+  if (payload.colorTags) fd.append("colorTags", payload.colorTags);
   if (variantList.length > 0) {
     fd.append("variants", JSON.stringify(variantList));
   }

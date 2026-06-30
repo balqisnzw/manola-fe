@@ -266,6 +266,21 @@ export function AddProductModal({
             </select>
           </div>
 
+          {/* Tag Warna (untuk filter) */}
+          <div>
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">
+              Tag Warna <span className="text-[#9CA3AF] font-normal">(opsional, untuk filter)</span>
+            </label>
+            <input
+              type="text"
+              value={formData.colorTags}
+              onChange={(e) => onChange({ ...formData, colorTags: e.target.value })}
+              placeholder="Contoh: Hitam, Hijau, Merah"
+              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm focus:outline-none focus:border-[#0A0A0A]"
+            />
+            <p className="text-xs text-[#9CA3AF] mt-1">Pisahkan warna dengan koma. Berguna untuk filter produk multi-warna.</p>
+          </div>
+
           {/* Baris Variant */}
           <div>
             <label className="block text-sm font-medium text-[#0A0A0A] mb-2">Variasi Produk</label>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, CreditCard, Truck, MapPin, ChevronDown } from "lucide-react"
@@ -18,7 +18,7 @@ import Script from "next/script";
 
 
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isBuyNow = searchParams.get("buy_now") === "true";
@@ -618,5 +618,13 @@ export default function CheckoutPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<MLoader />}>
+      <CheckoutContent />
+    </Suspense>
   );
 }

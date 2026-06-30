@@ -185,6 +185,7 @@ export default function AdminProdukPage() {
               stock: v.stock.toString(),
             }))
           : [{ size: "M", color: "", stock: "" }],
+      colorTags: product.colorTags ?? "",
     })
     setPhotos([])
     setShowEditModal(true)
@@ -222,6 +223,7 @@ export default function AdminProdukPage() {
         categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
         sku: formData.sku || undefined,
+        colorTags: formData.colorTags || undefined,
       },
       toVariantPayload(formData.variants),
       photos.length > 0 ? photos : undefined,
@@ -269,6 +271,7 @@ export default function AdminProdukPage() {
         categoryId: formData.categoryId ? parseInt(formData.categoryId) : undefined,
         supplierId: formData.supplierId ? parseInt(formData.supplierId) : undefined,
         sku: formData.sku || undefined,
+        colorTags: formData.colorTags || undefined,
       },
       toVariantPayload(formData.variants),
       photos.length > 0 ? photos : undefined,

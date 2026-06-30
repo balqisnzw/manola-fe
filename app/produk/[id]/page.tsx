@@ -292,7 +292,9 @@ export default function ProductDetailPage() {
           <div className="space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <MBadge variant="secondary">{product.category ?? "-"}</MBadge>
+                <Link href={`/?category=${encodeURIComponent(product.category ?? "")}`}>
+                  <MBadge variant="secondary" className="cursor-pointer hover:bg-gray-200 transition-colors">{product.category ?? "-"}</MBadge>
+                </Link>
               </div>
               <h1 className="text-3xl font-bold text-[var(--brand-black)] mb-2">{product.name}</h1>
               <div className="flex items-center gap-3">
