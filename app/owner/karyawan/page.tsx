@@ -21,6 +21,7 @@ export default function OwnerKaryawanPage() {
   const [employees, setEmployees] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -35,6 +36,14 @@ export default function OwnerKaryawanPage() {
     confirmPassword: "",
     no_telepon: "",
     role: "ADMIN" as EmployeeRole,
+  })
+
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    no_telepon: "",
+    role: "ADMIN" as EmployeeRole,
+    password: "",
+    confirmPassword: "",
   })
 
   useEffect(() => {
@@ -78,6 +87,40 @@ export default function OwnerKaryawanPage() {
       toast.success("Karyawan berhasil ditambahkan")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Gagal menambahkan karyawan"
+      toast.error(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEditEmployee = async () => {
+    if (!selectedEmployee) return
+    if (!editFormData.name || !editFormData.no_telepon) {
+      toast.error("Nama dan No. Telepon wajib diisi")
+      return
+    }
+    if (editFormData.password && editFormData.password !== editFormData.confirmPassword) {
+      toast.error("Password baru dan konfirmasi password tidak cocok")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const payload: { nama: string; no_telepon: string; role: EmployeeRole; password?: string } = {
+        nama: editFormData.name,
+        no_telepon: editFormData.no_telepon,
+        role: editFormData.role,
+      }
+      if (editFormData.password) {
+        payload.password = editFormData.password
+      }
+      const updated = await employeeService.update(selectedEmployee.id, payload)
+      setEmployees(employees.map((e) => (e.id === selectedEmployee.id ? updated : e)))
+      setShowEditModal(false)
+      setSelectedEmployee(null)
+      toast.success("Data karyawan berhasil diperbarui")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal memperbarui karyawan"
       toast.error(message)
     } finally {
       setSubmitting(false)
@@ -138,17 +181,37 @@ export default function OwnerKaryawanPage() {
       key: "action",
       label: "Aksi",
       render: (item: User) => (
-        <MButton
-          variant="ghost"
-          size="sm"
-          className="text-red-500 hover:text-red-600 hover:bg-red-50"
-          onClick={() => {
-            setSelectedEmployee(item)
-            setShowDeleteModal(true)
-          }}
-        >
-          Hapus
-        </MButton>
+        <div className="flex items-center gap-2">
+          <MButton
+            variant="ghost"
+            size="sm"
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            onClick={() => {
+              setSelectedEmployee(item)
+              setEditFormData({
+                name: item.nama,
+                no_telepon: item.no_telepon || "",
+                role: item.role as EmployeeRole,
+                password: "",
+                confirmPassword: "",
+              })
+              setShowEditModal(true)
+            }}
+          >
+            Edit
+          </MButton>
+          <MButton
+            variant="ghost"
+            size="sm"
+            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+            onClick={() => {
+              setSelectedEmployee(item)
+              setShowDeleteModal(true)
+            }}
+          >
+            Hapus
+          </MButton>
+        </div>
       ),
     },
   ]
@@ -231,6 +294,70 @@ export default function OwnerKaryawanPage() {
               <option value="PACKAGING">Packaging</option>
             </select>
           </div>
+        </div>
+      </MModal>
+
+      {/* Edit Employee Modal */}
+      <MModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Akun Karyawan"
+        maxWidth="md"
+        footer={
+          <>
+            <MButton variant="ghost" onClick={() => setShowEditModal(false)}>
+              Batal
+            </MButton>
+            <MButton variant="primary" onClick={handleEditEmployee} disabled={submitting}>
+              {submitting ? "Menyimpan..." : "Simpan Perubahan"}
+            </MButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <MInput
+            label="Nama Lengkap"
+            value={editFormData.name}
+            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+          />
+          <MInput
+            label="Email (Tidak dapat diubah)"
+            type="email"
+            value={selectedEmployee?.email || ""}
+            disabled
+          />
+          <MInput
+            label="No. Telepon"
+            type="tel"
+            value={editFormData.no_telepon}
+            onChange={(e) => setEditFormData({ ...editFormData, no_telepon: e.target.value })}
+          />
+          <div>
+            <label className="block text-sm font-medium text-[#0A0A0A] mb-1.5">Role</label>
+            <select
+              value={editFormData.role}
+              onChange={(e) => setEditFormData({ ...editFormData, role: e.target.value as EmployeeRole })}
+              className="w-full h-10 border border-[#E5E7EB] rounded-md px-3 text-sm bg-white focus:border-[#0A0A0A] focus:outline-none"
+            >
+              <option value="ADMIN">Admin</option>
+              <option value="KASIR">Kasir</option>
+              <option value="PACKAGING">Packaging</option>
+            </select>
+          </div>
+          <MInput
+            label="Password Baru (Kosongkan jika tidak diubah)"
+            type="password"
+            value={editFormData.password}
+            onChange={(e) => setEditFormData({ ...editFormData, password: e.target.value })}
+            showPasswordToggle
+          />
+          <MInput
+            label="Konfirmasi Password Baru"
+            type="password"
+            value={editFormData.confirmPassword}
+            onChange={(e) => setEditFormData({ ...editFormData, confirmPassword: e.target.value })}
+            showPasswordToggle
+          />
         </div>
       </MModal>
 

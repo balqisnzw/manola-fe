@@ -22,6 +22,13 @@ export interface CreateEmployeePayload {
   role: EmployeeRole;
 }
 
+export interface UpdateEmployeePayload {
+  nama?: string;
+  no_telepon?: string;
+  role?: EmployeeRole;
+  password?: string;
+}
+
 // ─── Employee service ──────────────────────────────────────────────────────────
 
 export const employeeService = {
@@ -34,6 +41,12 @@ export const employeeService = {
   /** POST /employees */
   async create(payload: CreateEmployeePayload): Promise<User> {
     const res = await api.post<ApiResponse<User>>("/employees", payload);
+    return res.data;
+  },
+
+  /** PUT /employees/:id */
+  async update(id: number, payload: UpdateEmployeePayload): Promise<User> {
+    const res = await api.put<ApiResponse<User>>(`/employees/${id}`, payload);
     return res.data;
   },
 
