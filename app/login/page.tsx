@@ -22,6 +22,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -203,15 +204,24 @@ export default function LoginPage() {
                 </button>
               </div>
               {!isLogin && (
-                <MInput
-                  label="Konfirmasi Password"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleInputChange}
-                  placeholder="Ulangi password"
-                  required
-                />
+                <div className="relative">
+                  <MInput
+                    label="Konfirmasi Password"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    placeholder="Ulangi password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-[38px] text-[var(--brand-muted)] hover:text-[var(--brand-black)]"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               )}
               {isLogin && (
                 <div className="flex justify-end">
