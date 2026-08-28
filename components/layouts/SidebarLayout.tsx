@@ -68,7 +68,7 @@ export function SidebarLayout({
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
       {/* Mobile Top Bar */}
-      <div className="lg:hidden flex items-center justify-between p-4 bg-white border-b border-[#E5E7EB] sticky top-0 z-30">
+      <div className="lg:hidden flex items-center justify-between p-4 bg-[#FFFFFF] border-b border-[#E5E7EB] sticky top-0 z-30">
         {logoUrl ? (
           <img src={getImageUrl(logoUrl)} alt="MANOLA" className="h-6 object-contain" />
         ) : (
@@ -94,7 +94,7 @@ export function SidebarLayout({
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed left-0 top-0 w-60 h-full bg-white border-r border-[#E5E7EB] flex flex-col z-50 transition-transform duration-300 ease-in-out lg:translate-x-0",
+        "fixed left-0 top-0 w-60 h-full bg-[#FFFFFF] border-r border-[#E5E7EB] flex flex-col z-50 transition-transform duration-300 ease-in-out lg:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         {/* Logo */}

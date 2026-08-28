@@ -38,7 +38,7 @@ export function NavbarLayout({ navItems, children, rightContent }: NavbarLayoutP
   return (
     <div className="min-h-screen bg-[#F9F9F9]">
       {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-[#E5E7EB] flex items-center px-4 md:px-8 justify-between z-50">
+      <header className="fixed top-0 left-0 right-0 h-14 bg-[#FFFFFF] border-b border-[#E5E7EB] flex items-center px-4 md:px-8 justify-between z-50">
         {/* Logo */}
         {logoUrl ? (
           <img src={getImageUrl(logoUrl)} alt="MANOLA" className="h-6 object-contain" />

@@ -73,6 +73,7 @@ export async function apiRequest<T = unknown>(
   }
 
   const response = await fetch(`${BASE_URL}${path}`, {
+    cache: "no-store",
     ...init,
     headers: {
       ...headers,
@@ -104,7 +105,11 @@ export async function apiRequest<T = unknown>(
       // Also clear cookies so middleware stops granting access
       document.cookie = "manola_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
       document.cookie = "manola_user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
-      window.location.href = "/login";
+      
+      // Jangan reload jika sedang berada di halaman login
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
 
     const message =

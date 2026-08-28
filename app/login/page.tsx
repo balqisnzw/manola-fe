@@ -110,8 +110,12 @@ export default function LoginPage() {
     try {
       await authService.forgotPassword(formData.email);
       setSuccessMsg("Link reset password telah dikirim ke email Anda.");
-    } catch {
-      setError("Gagal mengirim email reset. Coba lagi.");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError("Gagal mengirim email reset. Coba lagi.");
+      }
     } finally {
       setLoading(false);
     }
